@@ -8,6 +8,8 @@ Through web scraping, the original dataframe was updated by fetching the attribu
 
 The market_analysis notebook contains a few visualizations on price trends and reaction of complementary players. 
 
+Interactive visualizations will be also be added to the repository soon. 
+
 
 
 
