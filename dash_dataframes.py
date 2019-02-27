@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-df_p = pd.read_csv('prices_database.csv', index_col='Unnamed: 0', parse_dates=['date', 'added_date'])
+df_p = pd.read_csv('data/prices_database.csv', index_col='Unnamed: 0', parse_dates=['date', 'added_date'])
 stats_cols = ['num_games', 'avg_goals', 'avg_assists'] 
 for col in stats_cols:
     if col == 'num_games':
@@ -45,7 +45,7 @@ df_p['popular_leagues'] = np.where(df_p.league.isin(popular_leagues), 1, 0)
 
 
 # Output
-df_p.to_csv('dash_players_dataframe.csv')
+df_p.to_csv('data/dash_players_dataframe.csv')
 df_pe = df_p.groupby('resource_id').last().reset_index()
 df_pe['avg_contributions'] = df_pe.avg_goals + df_pe.avg_assists
-df_pe.to_csv('dash_groupedplayers_dataframe.csv')
+df_pe.to_csv('data/dash_groupedplayers_dataframe.csv')
