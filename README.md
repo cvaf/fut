@@ -6,10 +6,7 @@ Credits to [S. Leone](https://www.kaggle.com/stefanoleone992/fifa-19-fifa-ultima
 
 Through web scraping, the original dataframe was updated by fetching the attributes and prices of new players from futbin. The [database_build](https://github.com/cvaf/fut/blob/master/database_build.ipynb) notebook provides instructions for updating the dataframe. All relevant scraping functions can be found in db_functions.py
 
-The market_analysis notebook contains a few visualizations on price trends and reaction of complementary players. 
-
-Interactive visualizations will be also be added to the repository soon. 
-
+[dash_pgp.py](https://github.com/cvaf/fut/blob/master/dash_dataframes.py) provides an interactive interface to view the relationship between Price and Performance for players. Additional interactive visualizations will be added soon. The plan is to create a visual dashboard to store these graphs. 
 
 
 
