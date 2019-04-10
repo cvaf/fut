@@ -89,9 +89,9 @@ app.layout = html.Div([
     style={'margin-bottom': '20'}
     ),
 
-
+    # rating slider
     html.Div([
-        html.P("Move the slider to narrow down or broaden the rating search"),
+        html.P("Move this slider to narrow down or broaden the rating search:"),
         dcc.RangeSlider(
             id='ratings',
             min=75,
@@ -99,13 +99,28 @@ app.layout = html.Div([
             step=1,
             value=[84, 88],
             marks={str(overall): str(overall) for overall in df['overall'].unique()})
-    ],
+        ],
     className='row',
     style={'margin-bottom': '40'}
     ),
 
     # Separator
     html.Hr(style={'margin': '0', 'margin-bottom': '5'}),
+
+    html.Div([
+        html.P("Move this slider to narrow down the prices:"),
+        dcc.RangeSlider(
+            id='prices',
+            marks={i: '{}'.format(10**i) for i in range(1, 5)},
+            max=4.5,
+            value=[2.3, 2.7],
+            dots=False,
+            step=.01,
+            updatemode='drag'
+            )],
+        className='row',
+        style={'margin-bottom': '40'}
+    ),
 
 
     dcc.Graph(id='graph-with-dropdowns'),
@@ -131,10 +146,12 @@ style = {
      Input('league', 'value'),
      Input('position', 'value'),
      Input('contribution', 'value'),
-     Input('ratings', 'value')])
+     Input('ratings', 'value'),
+     Input('prices', 'value')])
 
-def update_graph(country, league, position, contribution, ratings):
+def update_graph(country, league, position, contribution, ratings, prices):
     df_ = df[(df.overall >= ratings[0]) & (df.overall <= ratings[1])]
+    df_ = df_[(df_.price >= 1000*(10**prices[0])) & (df_.price <= 1000*(10**prices[1]))]
     if country != None:
         df_ = df_[df_.nationality == country]
     if league != None:
