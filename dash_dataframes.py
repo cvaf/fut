@@ -48,4 +48,4 @@ df_p['popular_leagues'] = np.where(df_p.league.isin(popular_leagues), 1, 0)
 df_p.to_csv('data/dash_players_dataframe.csv')
 df_pe = df_p.groupby('resource_id').last().reset_index()
 df_pe['avg_contributions'] = df_pe.avg_goals + df_pe.avg_assists
-df_pe.to_csv('data/dash_groupedplayers_dataframe.csv')
+df_pe.to_csv('dash_groupedplayers_dataframe.csv')

@@ -18,51 +18,111 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
+app.title = 'FUT Prices and Performance'
 
 df = pd.read_csv('dash_groupedplayers_dataframe.csv', 
                  index_col='Unnamed: 0', parse_dates=['date', 'added_date'])
 
-countries = df.nationality.unique()
-leagues = df.league.unique()
-positions = df.position.unique()
+countries = [dict(label=str(c), value=str(c)) for c in df.nationality.unique()]
+leagues = [dict(label=str(l), value=str(l)) for l in df.league.unique()]
+positions = [dict(label=str(p), value=str(p)) for p in df.position.unique()]
 
+
+# Define the application layout
 app.layout = html.Div([
+
+    # Title
+    html.Div([
+        html.H1(
+            'FUT Prices and Performance',
+            className= 'eight columns',
+            style={'text-align': 'left'}
+            ),
+    ], className='row'
+    ),
+
+    # Separator
+    html.Hr(style={'margin': '0', 'margin-bottom': '5'}),
+
+    # Drop Downs
+    html.Div([
+
+        # Left most 
+        html.Div([
+            html.Label('Select a specific country:'),
+            dcc.Dropdown(
+                id='country',
+                options=countries,
+                value=None)],
+            className = 'three columns'),
+
+        # left 
+        html.Div([
+            html.Label('Select a specific league:'),
+            dcc.Dropdown(
+                id='league',
+                options=leagues,
+                value=None)],
+            className= 'three columns'),
+
+        # right
+        html.Div([
+            html.Label('Select a specific position:'),
+            dcc.Dropdown(
+                id='position',
+                options=positions,
+                value='ST')],
+            className= 'three columns'),
+
+        # right most 
+        html.Div([
+            html.Label('Contribution Type:'),
+            dcc.RadioItems(
+                id='contribution',
+                options = [{'label': i, 'value': i} for i in ['Goals', 'Assists', 'Both']],
+                value='Both',
+                labelStyle={'display': 'inline-block'})],
+            className= 'two columns')
+
+    ],
+    className='row',
+    style={'margin-bottom': '20'}
+    ),
+
+
+    html.Div([
+        html.P("Move the slider to narrow down or broaden the rating search"),
+        dcc.RangeSlider(
+            id='ratings',
+            min=75,
+            max=99,
+            step=1,
+            value=[84, 88],
+            marks={str(overall): str(overall) for overall in df['overall'].unique()})
+    ],
+    className='row',
+    style={'margin-bottom': '40'}
+    ),
+
+    # Separator
+    html.Hr(style={'margin': '0', 'margin-bottom': '5'}),
+
+
     dcc.Graph(id='graph-with-dropdowns'),
-    dcc.Dropdown(
-        id='country',
-        options=[{'label': i, 'value': i} for i in countries],
-        value=None,
-        placeholder='Choose a specific Country'
-    ),
-    dcc.Dropdown(
-        id='league',
-        options=[{'label': i, 'value': i} for i in leagues],
-        value=None,
-        placeholder='Choose a specific League'
-    ),
-    dcc.Dropdown(
-        id='position',
-        options=[{'label': i, 'value': i} for i in positions],
-        value=None,
-        placeholder='Choose a specific position'
-    ),
-    html.P("Choose the type of contribution."),
-    dcc.RadioItems(
-        id='contribution',
-        options=[{'label': i, 'value': i} for i in ['Goals', 'Assists', 'Both']],
-        value='Both',
-        labelStyle={'display': 'inline-block'}
-    ),
-    html.P("Move the slider to narrow down or broaden the overall search"),
-    dcc.RangeSlider(
-        id='ratings',
-        min=75,
-        max=99,
-        step=1,
-        value=[84, 90],
-        marks={str(overall): str(overall) for overall in df['overall'].unique()}
-    )
-])
+],
+
+style = {
+    'width': '85%',
+    'max-width': '2000',
+    'margin-left': 'auto',
+    'margin-right': 'auto',
+    'background-color': '#F3F3F3',
+    'padding': '40',
+    'padding-top': '20',
+    'padding-bottom': '20',
+}
+
+)
 
 
 @app.callback(
@@ -71,7 +131,7 @@ app.layout = html.Div([
      Input('league', 'value'),
      Input('position', 'value'),
      Input('contribution', 'value'),
-      Input('ratings', 'value')])
+     Input('ratings', 'value')])
 
 def update_graph(country, league, position, contribution, ratings):
     df_ = df[(df.overall >= ratings[0]) & (df.overall <= ratings[1])]
