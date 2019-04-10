@@ -6,6 +6,7 @@
 # Position Dropdown
 
 import dash
+from dash.dependencies import Input, Output
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
@@ -59,12 +60,12 @@ app.layout = html.Div([
 
 
 @app.callback(
-    dash.dependencies.Output('graph-with-dropdowns', 'figure'),
-    [dash.dependencies.Input('country', 'value'),
-     dash.dependencies.Input('league', 'value'),
-     dash.dependencies.Input('position', 'value'),
-     dash.dependencies.Input('contribution', 'value'),
-     dash.dependencies.Input('ratings', 'value')])
+    Output('graph-with-dropdowns', 'figure'),
+    [Input('country', 'value'),
+     Input('league', 'value'),
+     Input('position', 'value'),
+     Input('contribution', 'value'),
+      Input('ratings', 'value')])
 
 def update_graph(country, league, position, contribution, ratings):
     df_ = df[(df.overall >= ratings[0]) & (df.overall <= ratings[1])]
