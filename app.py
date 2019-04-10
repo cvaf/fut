@@ -30,24 +30,29 @@ app.layout = html.Div([
     dcc.Dropdown(
         id='country',
         options=[{'label': i, 'value': i} for i in countries],
-        value=None
+        value=None,
+        placeholder='Choose a specific Country'
     ),
     dcc.Dropdown(
         id='league',
         options=[{'label': i, 'value': i} for i in leagues],
-        value=None
+        value=None,
+        placeholder='Choose a specific League'
     ),
     dcc.Dropdown(
         id='position',
         options=[{'label': i, 'value': i} for i in positions],
-        value=None
+        value=None,
+        placeholder='Choose a specific position'
     ),
+    html.P("Choose the type of contribution."),
     dcc.RadioItems(
         id='contribution',
         options=[{'label': i, 'value': i} for i in ['Goals', 'Assists', 'Both']],
         value='Both',
         labelStyle={'display': 'inline-block'}
     ),
+    html.P("Move the slider to narrow down or broaden the overall search"),
     dcc.RangeSlider(
         id='ratings',
         min=75,
@@ -77,13 +82,13 @@ def update_graph(country, league, position, contribution, ratings):
         df_ = df_[df_.position == position]
     if contribution == 'Both':
         x = 'avg_contributions'
-        x_t = 'Average Number of Contributions'
+        x_t = 'Average Number of Contributions per Game'
     elif contribution == 'Goals':
         x = 'avg_goals'
-        x_t = 'Average Number of Goals'
+        x_t = 'Average Number of Goals per Game'
     else:
         x = 'avg_assists'
-        x_t = 'Average Number of Assists'
+        x_t = 'Average Number of Assists per Game'
     
     
     data =[]
