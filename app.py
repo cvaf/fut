@@ -18,7 +18,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-df = pd.read_csv('data/dash_groupedplayers_dataframe.csv', 
+df = pd.read_csv('dash_groupedplayers_dataframe.csv', 
                  index_col='Unnamed: 0', parse_dates=['date', 'added_date'])
 
 countries = df.nationality.unique()
