@@ -57,7 +57,7 @@ def player_fetch_pgp(player_id):
         player_id: Futbin unique player ID
         
     Returns: 
-        resource_id: The equivalent statistics
+        num_games, num_goals, num_assists: The equivalent statistics
     """
     resp = requests.get('https://www.futbin.com/19/player/' + str(player_id))
     soup = BeautifulSoup(resp.text, 'html')
@@ -95,6 +95,31 @@ def df_fetch_pgp(dataframe):
             print('Approximate time left: {} seconds.'.format(seconds_left))
     dataframe[dataframe.num_games.isnull()] = df_
     return dataframe
+
+
+def df_fetch_pgp_full(dataframe):
+    """
+    Identif function to df_fetch_pgp but for all players
+    
+    Arguments:
+        dataframe: our player dataframe
+    Returns:
+        dataframe: the updated player dataframe
+    """
+    tot_players = dataframe.shape[0]
+    start_time = time(); i = 0        # for tracking purposes
+    for player_id in dataframe.index:
+        num_games, num_goals, num_assists = player_fetch_pgp(player_id)
+        dataframe.loc[player_id, 'num_games'] = num_games
+        dataframe.loc[player_id, 'avg_goals'] = num_goals
+        dataframe.loc[player_id, 'avg_assists'] = num_assists
+        i+=1                          # increment the tracking
+        if i % 200 == 0:
+            print('Completed {} players. Time elapsed: {} seconds.'.format(i, int(time() - start_time)))
+            seconds_left = int((int(time() - start_time) / i) * (tot_players - i))
+            print('Approximate time left: {} seconds.'.format(seconds_left))
+    return dataframe
+
 
 def player_fetch_all(player_id):
     """
@@ -279,3 +304,41 @@ def player_fetch_price(res_id, prices):
         print('No prices available for player with the following resource_id: {}.'.format(res_id))
         
     return prices
+
+
+
+def df_fetch_price_intervals(dataframe):
+    """
+    Identical function to df_fetch_price w/ breaks at every 1000 players.
+    
+    Arguments:
+        dataframe: our original dataframe
+        
+    Returns:
+        df_price: our new dataframe with the prices
+    """
+    resource_ids = dataframe['resource_id']
+    prices = []
+    tot_players = len(resource_ids)
+    j = 0
+    start_time = time()
+    j_time = start_time
+    last_j = 0
+    for res_id in resource_ids:
+        prices = player_fetch_price(res_id, prices)
+        j += 1
+        if (j % 200 == 0) | (j == 1):
+            seconds_left = int(((int(time() - j_time)/(j-last_j)) * (tot_players - j)))
+            print('Completed {} players. Time elapsed: {} seconds. Approx. {} seconds left.'.format(j, 
+                                                                                                    int(time() - start_time), 
+                                                                                                    seconds_left))
+            if j % 1000 == 0:
+                proceed = input('Proceed?')
+                if proceed != 'y':
+                    return df
+            
+            j_time = time()
+            last_j = j
+    df_prices = pd.DataFrame(prices)
+    df = dataframe.merge(df_prices, on = 'resource_id', how = 'right')
+    return df
