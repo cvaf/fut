@@ -37,14 +37,15 @@ def df_fetch_resourceid(dataframe):
     """
     # mask our dataframe for players with no resource_id
     df_ = dataframe[dataframe.resource_id.isnull()]
-    start_time = time()
-    i = 0
+    start_time = time(); i = 0                       # for tracking purposes
     for player_id in df_.index:
         df_.loc[player_id, 'resource_id'] = player_fetch_resourceid(player_id)
-        i += 1
+        i += 1                                       # increment tracking
         if i % 500 == 0:
-            print('Completed {} players. Time elapsed: {} seconds.'.format(i, 
-                                                                           int(time() - start_time)))
+            time_diff = int(time() - start_time)     # time since start
+            min_diff = int(time_diff / 60)           # minutes since start
+            print('Completed {} players. Time elapsed: {} minutes.'.format(i, min_diff))
+            
     dataframe[dataframe.resource_id.isnull()] = df_
     return dataframe
 
@@ -60,7 +61,11 @@ def player_fetch_pgp(player_id):
         num_games, num_goals, num_assists: The equivalent statistics
     """
     resp = requests.get('https://www.futbin.com/19/player/' + str(player_id))
-    soup = BeautifulSoup(resp.text, 'html')
+    soup = BeautifulSoup(resp.text, features='lxml')
+    if 'does not have permission' in soup.text:
+        _ = input('Access Denied. Proceed?')
+        resp = requests.get('https://www.futbin.com/19/player/' + str(player_id))
+        soup = BeautifulSoup(resp.text, features='lxml')
     player_stats = soup.findAll('div', {'class': 'ps4-pgp-data'})
     num_games = player_stats[-1].text.split()[-1]
     num_goals = player_stats[-2].text.split()[-1]
@@ -79,20 +84,24 @@ def df_fetch_pgp(dataframe):
     """
     # mask our dataframe for players with no resource_id
     df_ = dataframe[dataframe.num_games.isnull()]
-    tot_players = df_.shape[0]
-    start_time = time()
-    i = 0
+    tot_players = df_.shape[0]                        # number of players
+    start_time = time(); i = 0                        # for tracking purposes
     for player_id in df_.index:
         num_games, num_goals, num_assists = player_fetch_pgp(player_id)
         df_.loc[player_id, 'num_games'] = num_games
         df_.loc[player_id, 'avg_goals'] = num_goals
         df_.loc[player_id, 'avg_assists'] = num_assists
-        i += 1
+        i += 1                                        # increment the tracking
         if i % 200 == 0:
-            print('Completed {} players. Time elapsed: {} seconds.'.format(i, 
-                                                                           int(time() - start_time)))
-            seconds_left = int((int(time() - start_time) / i) * (tot_players - i))
-            print('Approximate time left: {} seconds.'.format(seconds_left))
+            time_diff = int(time() - start_time)      # seconds since start
+            min_diff = int(time_diff / 60)            # minutes since start
+            time_pp = int(time_diff / i)              # seconds taken per player
+            pl_rem = tot_players - i                  # number of players remaining
+            min_left = int(time_pp * pl_rem / 60)     # minutes remaining
+            
+            print('Completed {} players. Time elapsed: {} minutes.'.format(i, min_diff))
+            print('Approximate time left: {} minutes.'.format(min_left))
+            
     dataframe[dataframe.num_games.isnull()] = df_
     return dataframe
 
@@ -106,18 +115,45 @@ def df_fetch_pgp_full(dataframe):
     Returns:
         dataframe: the updated player dataframe
     """
-    tot_players = dataframe.shape[0]
-    start_time = time(); i = 0        # for tracking purposes
+    tot_players = dataframe.shape[0]                  # number of players
+    start_time = time(); i = 0                        # for tracking purposes
+    
+    data = {'player_ID': [],
+            'num_games': [],
+            'avg_goals': [],
+            'avg_assists': []}
+    
     for player_id in dataframe.index:
+        
         num_games, num_goals, num_assists = player_fetch_pgp(player_id)
-        dataframe.loc[player_id, 'num_games'] = num_games
-        dataframe.loc[player_id, 'avg_goals'] = num_goals
-        dataframe.loc[player_id, 'avg_assists'] = num_assists
-        i+=1                          # increment the tracking
+#         dataframe.loc[player_id, 'num_games'] = num_games
+#         dataframe.loc[player_id, 'avg_goals'] = num_goals
+#         dataframe.loc[player_id, 'avg_assists'] = num_assists
+        
+        data['player_ID'].append(player_id)
+        data['num_games'].append(num_games)
+        data['avg_goals'].append(num_goals)
+        data['avg_assists'].append(num_assists)
+        
+        i+=1                                          # increment the tracking
         if i % 200 == 0:
-            print('Completed {} players. Time elapsed: {} seconds.'.format(i, int(time() - start_time)))
-            seconds_left = int((int(time() - start_time) / i) * (tot_players - i))
-            print('Approximate time left: {} seconds.'.format(seconds_left))
+            time_diff = int(time() - start_time)      # seconds since start
+            min_diff = int(time_diff / 60)            # minutes since start
+            time_pp = int(time_diff / i)              # seconds taken per player
+            pl_rem = tot_players - i                  # number of players remaining
+            min_left = int(time_pp * pl_rem / 60)     # minutes remaining
+            
+            print('Completed {} players. Time elapsed: {} minutes.'.format(i, min_diff))
+            print('Approximate time left: {} minutes.'.format(min_left))
+
+            
+            
+    data = pd.DataFrame(data=data)
+    data.set_index('player_ID', inplace=True)
+    if 'num_games' in dataframe.columns:
+        dataframe = dataframe.drop(['num_games', 'avg_goals', 'avg_assists'], axis=1)
+    dataframe = dataframe.merge(data, on='player_ID', how='left')
+    
     return dataframe
 
 
@@ -132,7 +168,11 @@ def player_fetch_all(player_id):
         data: A dictionary containing the relevant statistics.
     """
     resp = requests.get('https://www.futbin.com/19/player/' + str(player_id))
-    soup = BeautifulSoup(resp.text, 'html')
+    soup = BeautifulSoup(resp.text, features='lxml')
+    if 'does not have permission' in soup.text:
+        _ = input('Access denied. Proceed?')
+        resp = requests.get('https://www.futbin.com/19/player/' + str(player_id))
+        soup = BeautifulSoup(resp.text, features='lxml')
     
     # initialize our stats dictionary
     data = {}
@@ -226,11 +266,9 @@ def df_fetch_newplayers(player_id, dataframe):
     Returns:
         dataframe: An updated dataframe with all the latest players and their data.
     """
-    start_time = time()
-    last_index = dataframe.index[-1]
-    tot_players = player_id - last_index
-    
-    i = 0
+    start_time = time(); i=0                     # for tracking purposes
+    last_index = dataframe.index[-1]             # last player id in database
+    tot_players = player_id - last_index         # number of players to fetch
     for player in range(last_index + 1, player_id + 1):
         try:
             stats = player_fetch_all(player)
@@ -239,10 +277,13 @@ def df_fetch_newplayers(player_id, dataframe):
             print('No player found at ID: {}.'.format(player))
         i += 1
         if (i % 200 == 0) | (i == 1):
-            print('Completed {} players. Time elapsed: {} seconds.'.format(i, 
-                                                                           int(time() - start_time)))
-            seconds_left = int((int(time() - start_time) / i) * (tot_players - i))
-            print('Approximate time left: {} seconds.'.format(seconds_left))
+            time_diff = int(time() - start_time) # time since start
+            time_pp = time_diff / i              # time taken per player
+            pl_rem = tot_players - i             # number of players remaining
+            m_left = int((time_pp * pl_rem)/60)  # seconds left to 
+            
+            print('Completed {} players. Time elapsed: {} seconds.'.format(i, time_diff))
+            print('Approximate time left: {} minutes.'.format(m_left))
     
     return dataframe
 
@@ -258,23 +299,24 @@ def df_fetch_price(dataframe):
     Returns:
         df_price: our new dataframe with the prices
     """
-    resource_ids = dataframe['resource_id']
-    prices = []
-    tot_players = len(resource_ids)
-    j = 0
-    start_time = time()
-    j_time = start_time
-    last_j = 0
+    resource_ids = dataframe['resource_id']          # list of unique resource ids
+    prices = []                                      # init list to store prices
+    tot_players = len(resource_ids)                  # number of players to fetch prices for
+    j = 0; start_time = time()                       # tracking/statistics purposes
+    j_time = start_time; last_j = 0                  # tracking/statistics purposes   
+    
     for res_id in resource_ids:
-        prices = player_fetch_price(res_id, prices)
-        j += 1
+        prices = player_fetch_price(res_id, prices)  # fetch the prices
+        j += 1                                       # increment the tracking
         if (j % 200 == 0) | (j == 1):
-            seconds_left = int(((int(time() - j_time)/(j-last_j)) * (tot_players - j)))
-            print('Completed {} players. Time elapsed: {} seconds. Approx. {} seconds left.'.format(j, 
-                                                                                                    int(time() - start_time), 
-                                                                                                    seconds_left))
-            j_time = time()
-            last_j = j
+            time_start = int(time()-start_time)      # time since beginning
+            time_diff = int(time() - j_time)         # time since last update
+            pl_diff = j - last_j                     # number of players since last update
+            pl_left = tot_players - j                # number of players left
+            time_pp = time_diff / pl_diff            # time taken per player
+            seconds_left = int(time_pp * pl_left)
+            print('Completed {} players. Time elapsed: {} seconds. Approx. {} seconds left.'.format(j, time_start, seconds_left))
+            j_time = time(); last_j = j              # update the tracking vars
     df_prices = pd.DataFrame(prices)
     df = dataframe.merge(df_prices, on = 'resource_id', how = 'right')
     return df
@@ -293,7 +335,11 @@ def player_fetch_price(res_id, prices):
     
     resp = requests.get('https://www.futbin.com/19/playerGraph?type=daily_graph&year=19&player=' + str(res_id))
     try:
-        soup = BeautifulSoup(resp.text, 'html')
+        soup = BeautifulSoup(resp.text, features='lxml')
+        if 'does not have permission' in soup.text:
+            _ = input('Access denied. Proceed?')            # inform that access was denied and await input
+            resp = requests.get('https://www.futbin.com/19/playerGraph?type=daily_graph&year=19&player=' + str(res_id))
+            soup = BeautifulSoup(resp.text, features='lxml')
         price_data = json.loads(soup.text)['ps']
         for i in price_data:
             row = {'resource_id': res_id}
@@ -317,28 +363,29 @@ def df_fetch_price_intervals(dataframe):
     Returns:
         df_price: our new dataframe with the prices
     """
-    resource_ids = dataframe['resource_id']
-    prices = []
-    tot_players = len(resource_ids)
-    j = 0
-    start_time = time()
-    j_time = start_time
-    last_j = 0
+    resource_ids = dataframe['resource_id']      # list of unique resource ids
+    prices = []                                  # init list to store prices
+    tot_players = len(resource_ids)              # number of players to fetch prices for
+    j = 0; start_time = time()                   # tracking/statistics purposes
+    j_time = start_time; last_j = 0              # tracking/statistics purposes
+    
     for res_id in resource_ids:
         prices = player_fetch_price(res_id, prices)
-        j += 1
+        j += 1                                   # increment tracking var
+        
         if (j % 200 == 0) | (j == 1):
-            seconds_left = int(((int(time() - j_time)/(j-last_j)) * (tot_players - j)))
-            print('Completed {} players. Time elapsed: {} seconds. Approx. {} seconds left.'.format(j, 
-                                                                                                    int(time() - start_time), 
-                                                                                                    seconds_left))
-            if j % 1000 == 0:
-                proceed = input('Proceed?')
-                if proceed != 'y':
-                    return df
+            time_last = int(time() - j_time)     # time since last update
+            pl_last = j - last_j                 # players since last update
+            pl_rem = tot_players - j             # players left to finish
+            time_beg = int(time() - start_time)  # time from beginning
+            time_ppl = time_last / pl_last       # time per player since last update
+            min_rem = int(time_ppl * pl_rem / 60)# minutes left to finish
             
-            j_time = time()
-            last_j = j
+            print('Completed {} players.'.format(j))
+            print('Time elapsed: {} seconds. Approx. {} minutes left.'.format(time_beg, min_rem))
+            
+            j_time = time(); last_j = j          # update tracking vars
+            
     df_prices = pd.DataFrame(prices)
     df = dataframe.merge(df_prices, on = 'resource_id', how = 'right')
     return df
