@@ -164,33 +164,33 @@ def fetch_player(player_id):
 
     ## PACE
     for i in range(3):
-    	stat = stats[0]['pace'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['pace'][i]['value']
+        data.append(stat)
 
     ## SHOOTING
     for i in range(7):
-    	stat = stats[0]['shooting'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['shooting'][i]['value']
+        data.append(stat)
 
     ## PASSING
     for i in range(7):
-    	stat = stats[0]['passing'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['passing'][i]['value']
+        data.append(stat)
 
     ## DRIBBLING
     for i in range(7):
-    	stat = stats[0]['dribbling'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['dribbling'][i]['value']
+        data.append(stat)
 
     ## DEFENDING
     for i in range(6):
-    	stat = stats[0]['defending'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['defending'][i]['value']
+        data.append(stat)
 
     ## PHYSICAL
     for i in range(5):
-    	stat = stats[0]['physical'][i]['value']
-    	data.append(stat)
+        stat = stats[0]['physical'][i]['value']
+        data.append(stat)
 
     return data
 
@@ -231,10 +231,10 @@ def fetch_df_players(num_processes=10):
             'def_slid_tackle', 'physicality', 'phys_jumping', 'phys_stamina', 'phys_strength', 
             'phys_aggression']
 
-    try:
+    if os.path.exists('../data/fifa20_players.pkl'):
         df = pd.read_pickle('../data/fifa20_players.pkl')
         current_pid = df.player_id.values[-1]
-    except:
+    else:
         df = pd.DataFrame(columns=cols)
         current_pid = 0
 
@@ -244,13 +244,13 @@ def fetch_df_players(num_processes=10):
     pids = range(current_pid+1, latest_pid+1)
 
     with Pool(num_processes) as p:
-    	players_data = list(tqdm(p.imap(fetch_player, pids), total=total_pids))
+        players_data = list(tqdm(p.imap(fetch_player, pids), total=total_pids))
 
     if df.shape[0] == 0:
-    	df = pd.DataFrame(data=players_data, columns=cols)
+        df = pd.DataFrame(data=players_data, columns=cols)
     else:
-    	new_df = pd.DataFrame(data=players_data, columns=cols)
-    	df = df.append(new_df)
+        new_df = pd.DataFrame(data=players_data, columns=cols)
+        df = df.append(new_df)
 
     df = df[df.phys_aggression.notnull()].reset_index(drop=True)
     df.sort_values(by='player_id', ascending=True, inplace=True)
@@ -283,8 +283,3 @@ def fetch_df_prices(df_players, num_processes=10):
     df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
     df = df_players.merge(df_prices, on='resource_id', how='left')
     return df
-    # df_prices = pd.DataFrame(prices)
-    # df = dataframe.merge(df_prices, on = 'resource_id', how = 'right')
-
-
-    

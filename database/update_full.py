@@ -1,8 +1,13 @@
 import pandas as pd
 import numpy as np
 from update import fetch_df_players, fetch_df_prices
+import sys
 
-price_update = input('Fetch prices?')
+try:
+	price_update = str(sys.argv[1])
+	print(price_update)
+except:
+	price_update = input('Fetch prices?')
 
 df_players = fetch_df_players()
 df_players.to_pickle('../data/fifa20_players.pkl')
