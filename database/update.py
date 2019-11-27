@@ -81,10 +81,10 @@ def fetch_price(rid):
             row.append(strftime('%Y-%m-%d', localtime(i[0]/1000)))
             row.append(i[1])
             prices.append(row)
+        return prices
+
     except:
         print('No prices available for rid: {}'.format(rid))
-
-    return prices
 
 
 
@@ -278,6 +278,7 @@ def fetch_df_prices(df_players, num_processes=10):
         prices = list(tqdm(p.imap(fetch_price, rids), total=total_rids))
 
     prices = np.array(prices)
+    prices = [x for x in prices if x != None]
     prices = np.concatenate(prices)
 
     df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
