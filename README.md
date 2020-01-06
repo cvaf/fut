@@ -11,9 +11,12 @@ The [pricey](https://github.com/cvaf/fut/tree/master/pricey) folder consists of 
 - [sophie](https://github.com/cvaf/fut/blob/master/pricey/sophie.ipynb): treats prices as temporal data and attributes as "non-temporal". The model infrastructure is as follows, the temporal data is fed into an LSTM while the attributes are fed into a dense layer. Their outputs are concatenated and later fed into more layers. The results have yet to be examined fully (working on it atm) but thankfully there's lots of rooms for tweaking and improving. The latest model was trained on FIFA 19 data to predict FIFA 20 prices.
 
 Following are a few example predictions from [sophie](https://github.com/cvaf/fut/blob/master/pricey/sophie.ipynb):
-- ![](https://github.com/cvaf/fut/blob/master/images/example1.png)
-- ![](https://github.com/cvaf/fut/blob/master/images/example2.png)
-- ![](https://github.com/cvaf/fut/blob/master/images/example3.png)
+
+<img src="images/example1.png" style="zoom:50%;" />
+
+<img src="images/example2.png" style="zoom:50%;" />
+
+<img src="images/example3.png" style="zoom:50%;" />
 
 ## Data Visualization (FIFA 19)
 This [dashboard](https://fut-dash.herokuapp.com/) provides an interactive interface to view the relationship between Price and Performance. Code can be found in [dash_pgp.py](https://github.com/cvaf/fut/blob/master/dash_dataframes.py). Below is a screenshot of the dashboard. (Please note that it might take a few seconds to load)
