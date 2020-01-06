@@ -12,11 +12,11 @@ The [pricey](https://github.com/cvaf/fut/tree/master/pricey) folder consists of 
 
 Following are a few example predictions from [sophie](https://github.com/cvaf/fut/blob/master/pricey/sophie.ipynb):
 
-<img src="images/example1.png" style="zoom:40%;" />
+<img src="images/example1.png" style="zoom:20%;" />
 
-<img src="images/example2.png" style="zoom:40%;" />
+<img src="images/example2.png" style="zoom:20%;" />
 
-<img src="images/example3.png" style="zoom:40%;" />
+<img src="images/example3.png" style="zoom:20%;" />
 
 ## Data Visualization (FIFA 19)
 This [dashboard](https://fut-dash.herokuapp.com/) provides an interactive interface to view the relationship between Price and Performance. Code can be found in [dash_pgp.py](https://github.com/cvaf/fut/blob/master/dash_dataframes.py). Below is a screenshot of the dashboard. (Please note that it might take a few seconds to load)
