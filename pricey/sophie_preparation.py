@@ -1,3 +1,7 @@
+"""
+Script that prepares the raw dataset for modeling
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta

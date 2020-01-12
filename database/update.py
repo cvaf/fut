@@ -1,3 +1,8 @@
+"""
+Module containing functions for updating the player
+and prices dataframes
+"""
+
 import pandas as pd
 import numpy as np
 
@@ -5,6 +10,7 @@ import numpy as np
 from datetime import datetime
 from time import time, strftime, localtime, sleep
 import os
+import sys
 
 # scraping imports
 from bs4 import BeautifulSoup
@@ -284,3 +290,40 @@ def fetch_df_prices(df_players, num_processes=10):
     df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
     df = df_players.merge(df_prices, on='resource_id', how='left')
     return df
+
+
+if __name__ == '__main__':
+    try:
+        price_update = str(sys.argv[1])
+        print(price_update)
+    except:
+        price_update = input('Fetch prices?')
+
+
+    df_players = fetch_df_players()
+    df_players.to_pickle('../data/fifa20_players.pkl')
+    print('DONE: df_players.\n')
+
+    if price_update == 'y':
+        print('Fetching prices...')
+        df_prices = fetch_df_prices(df_players)
+        df_prices.to_pickle('../data/fifa20_prices.pkl')
+        print('DONE: df_prices.\n')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

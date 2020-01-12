@@ -1,6 +1,9 @@
 # Mac files
 .DS_Store
 
+# Guide
+guidebook.md
+
 # Folders
 data/
 other/
