@@ -93,9 +93,10 @@ def fetch_data(player_id):
 
     # Parse the player's age
     age_idx = 23
-    age = player_data[age_idx].strip(' ')
-    if age[-1] == 'old':
-        age = int(age[0])
+    age = player_data[age_idx]
+    stripped_age = age.split(' ')
+    if stripped_age[-1] == 'old':
+        age = int(stripped_age[0])
     else:
         current_date = datetime.today()
         birthday = datetime.strptime(age, '%d-%m-%Y')

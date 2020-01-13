@@ -12,6 +12,8 @@ import sys
 sys.path.append('../database')
 from datetime import datetime
 import joblib
+import warnings
+warnings.filterwarnings('ignore')
 
 # custom modules
 from preprocessing import fetch_data, pipeline
@@ -96,9 +98,10 @@ if __name__ == '__main__':
 	attr, temp = data_format(temporal, attributes)
 
 	# Generate prediction
-	preds = model.predict([attr, temp])
+	preds = model.predict([[attr], [temp]])
 	transformed_preds = price_scaler.inverse_transform(preds.reshape(1, -1))
 
+	print('Predictions:')
 	print(transformed_preds)
 
 
