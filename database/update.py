@@ -309,21 +309,3 @@ if __name__ == '__main__':
         df_prices = fetch_df_prices(df_players)
         df_prices.to_pickle('../data/fifa20_prices.pkl')
         print('DONE: df_prices.\n')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
