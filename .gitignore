@@ -1,12 +1,11 @@
 # Mac files
 .DS_Store
 
-# Guide
-guidebook.md
+# model evaluation notebook
+pricey/model_evaluation.ipynb
 
 # Folders
 data/
-other/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

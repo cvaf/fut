@@ -23,15 +23,11 @@ One can use the scripts to predict a player's prices as follows:
 python prediction.py 100
 ```
 
-where 100 is the player's ID. The model currently predicts a player's prices over the next three days.
+where 100 is the player's ID. The model currently uses a player's prices in the past week, to predict their price over the next three days. 
 
-Following are a few example predictions:
+Following are a few example predictions. (Step X means the prediction was generated X days before the day of interest). As expected, the higher the step number, the higher the error. 
 
-<img src="images/example1.png" width="300" />
-
-<img src="images/example2.png" width="300" />
-
-<img src="images/example3.png" width="300" />
+<img src="images/example4.png" width="300" />
 
 #### To-do:
 
