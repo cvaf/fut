@@ -27,7 +27,7 @@ where 100 is the player's ID. The model currently uses a player's prices in the 
 
 Following are a few example predictions. (Step X means the prediction was generated X days before the day of interest). As expected, the higher the step number, the higher the error. 
 
-<img src="images/example4.png" width="300" />
+<img src="images/example4.png" width="600" />
 
 #### To-do:
 
