@@ -7,9 +7,15 @@ import numpy as np
 
 # other
 from datetime import datetime, timedelta
-from config import TOP_LEAGUES, TOP_CLUBS, TOP_NATIONS, PROMO_DATES, COLUMNS, COLUMN_DTYPES,
- TEMP_COLS, ATTR_COLS, NUM_OBS, NUM_STEPS
+from config import *
+import warnings
+warnings.filterwarnings('ignore')
 
+# model-related
+import joblib
+from sklearn.pipeline import make_pipeline
+from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 
 def load_data():
@@ -18,13 +24,13 @@ def load_data():
     """
 
     # Load FIFA 19 dataframe
-    df19 = pd.read_csv('../data/fifa19_prices.csv', index_col='Unnamed: 0', 
+    df19 = pd.read_csv('data/fifa19_prices.csv', index_col='Unnamed: 0', 
                         parse_dates=['added_date', 'date'])
     df19.drop('quality', axis=1, inplace=True)
     df19 = df19[df19!='Icons'].reset_index(drop=True)
 
     # Load FIFA 20 dataframe
-    df20 = pd.read_pickle('../data/fifa20_prices.pkl')
+    df20 = pd.read_pickle('data/fifa20_prices.pkl')
     df20 = df20[df20.club!='Icons']
     df20 = df20[df19.columns]
     df20['age'] = df20.age.apply(lambda x: x.split(' ')[0]).astype(int)
@@ -139,12 +145,12 @@ def temporal_transformation(df, train=True):
     # Load transformers
     if train:
         temp_scaler = MinMaxScaler().fit(df_temp[temp_num].values)
-        joblib.dump(temp_scaler, '../models/temp_scaler.joblib')
+        joblib.dump(temp_scaler, 'models/temp_scaler.joblib')
         price_scaler = MinMaxScaler().fit(df_temp.price.values.reshape(-1, 1))
-        joblib.dump(price_scaler, '../models/price_scaler.joblib')
+        joblib.dump(price_scaler, 'models/price_scaler.joblib')
     else:
-        temp_scaler = joblib.load('../models/temp_scaler.joblib')
-        price_scaler = joblib.load('../models/price_scaler.joblib')
+        temp_scaler = joblib.load('models/temp_scaler.joblib')
+        price_scaler = joblib.load('models/price_scaler.joblib')
 
     # Temporal scaling
     df_temp[temp_num] = temp_scaler.transform(df_temp[temp_num].values)
@@ -166,25 +172,30 @@ def attribute_tranformation(df, train=True):
     if train:
         ct = make_column_transformer((MinMaxScaler(), num_mask), (OneHotEncoder(), ~num_mask))
         attr_ct = ct.fit(df_attr)
-        joblib.dump(attr_ct, '../models/attr_ct.joblib')
+        joblib.dump(attr_ct, 'models/attr_ct.joblib')
 
     else:
-        attr_ct = joblib.load('../models/attr_ct.joblib')
+        attr_ct = joblib.load('models/attr_ct.joblib')
 
-    idx = df_attr.index.values
-    cols = attr_num + attr_ct.named_transfomers_['onehotencoder'].get_feature_names().tolist()
+    ids = df_attr.index.values
+    # cols = attr_num + attr_ct.named_transfomers_['onehotencoder'].get_feature_names().tolist()
     data = attr_ct.transform(df_attr)
 
-    return pd.DataFrame(data=data, columns=cols, index=ids)
+
+
+    # return pd.DataFrame(data=data, columns=cols, index=ids)
+    data_dict = dict(zip(ids, data))
+
+    return data_dict
 
 
 
 def format(df, train=True):
 
-    df_temp = temporal_transformation(df, train=train)
-    df_attr = attribute_tranformation(df, train=train)
+    all_temp = temporal_transformation(df, train=train)
+    all_attr = attribute_tranformation(df, train=train)
 
-    pids = df_temp.index.unique().values
+    pids = all_temp.index.unique().values
 
     pids_data = []
     targ_data = []
@@ -193,8 +204,9 @@ def format(df, train=True):
 
     for pid in pids:
 
-        attributes = df_attr[df_attr.index==pid].values[0]
-        temporal_d = df_temp[df_temp.index==pid].values
+        attributes = all_attr[pid]
+        # attributes = df_attr[df_attr.index==pid].values[0]
+        temporal_d = all_temp[all_temp.index==pid].values
 
         total_obs = temporal_d.shape[0]
         window_size = NUM_OBS + NUM_STEPS
@@ -204,9 +216,9 @@ def format(df, train=True):
 
         for i in range(total_obs - window_size):
 
-            attr = np.append(attributes, temporal_d[i+num_obs-1][-1])
-            temp = temporal_d[i:i+num_obs][:, 1:]
-            targ = temporal_d[i+num_obs:i_num_obs+num_steps][:, -1]
+            attr = np.append(attributes, temporal_d[i+NUM_OBS-1][-1])
+            temp = temporal_d[i:i+NUM_OBS][:, 1:]
+            targ = temporal_d[i+NUM_OBS:i+NUM_OBS+NUM_STEPS][:, -1]
             targ_data.append(targ)
             temp_data.append(temp)
             attr_data.append(attr)
@@ -232,9 +244,13 @@ def run(validation=False):
     Load the data, process it and return the correct data format
     """
 
-    print('Preprocessing...')
+    print('Loading the data...')
     df = load_data()
+    print('Done.\n')
+
+    print('Processing...')
     df = processing(df)
+    print('Done.\n')
 
     df['custom_id'] = np.where(df.game == 'FIFA 20',
                                df.resource_id.astype(str) + '20',
@@ -243,18 +259,20 @@ def run(validation=False):
 
     df_train, df_valid = train_valid_split(df, validation=validation)
 
+    print('Formatting...')
     train_pids, train_targ, train_temp, train_attr = format(df_train)
     valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid)
-
-    date = datetime.now()
+    print('Done.\n')
+    
 
     if validation: 
         val = 1
     else:
         val = 0
-
+        
+    date = datetime.now()
     file_num = (int(date.month) * 100) + int(date.day) 
-    file_name = '../data/{}_{}.npz'.format(str(file_num), str(val))
+    file_name = 'data/{}_{}.npz'.format(str(file_num), str(val))
     np.savez(file_name, train_pids=train_pids, train_targ=train_targ, train_temp=train_temp,
              train_attr=train_attr, valid_pids=valid_pids, valid_targ=valid_targ,
              valid_temp=valid_temp, valid_attr=valid_attr)

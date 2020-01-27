@@ -248,8 +248,8 @@ def fetch_df_players(num_processes=10):
             'def_slid_tackle', 'physicality', 'phys_jumping', 'phys_stamina', 'phys_strength', 
             'phys_aggression']
 
-    if os.path.exists('../data/fifa20_players.pkl'):
-        df = pd.read_pickle('../data/fifa20_players.pkl')
+    if os.path.exists('data/fifa20_players.pkl'):
+        df = pd.read_pickle('data/fifa20_players.pkl')
         current_pid = df.player_id.values[-1]
     else:
         df = pd.DataFrame(columns=cols)
@@ -306,23 +306,20 @@ def fetch_df_prices(df_players, num_processes=10):
 def fetch_data():
     """
     Create/update/load the players dataframe and create/update/load the prices dataframe.
-    Arguments:
-        - price_update: str, 'y' to update prices
-        - save_file: boolean, True to save the dataframes
     """
 
     print('Fetching players...')
     df_players = fetch_df_players()
-    df_players.to_pickle('../data/fifa20_players.pkl', protocol=4)
+    df_players.to_pickle('data/fifa20_players.pkl', protocol=4)
     print('DONE: df_players.\n')
 
     print('Fetching prices...')
     df_prices = fetch_df_prices(df_players)
-    df_prices.to_pickle('../data/fifa20_prices.pkl', protocol=4)
+    df_prices.to_pickle('data/fifa20_prices.pkl', protocol=4)
     print('DONE: df_prices.\n')
 
     return df_players, df_prices
 
 
 if __name__ == '__main__':
-    df_players, df_prices =  fetch_data(price_update=price_update)
+    df_players, df_prices =  fetch_data()

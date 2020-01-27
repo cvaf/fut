@@ -89,3 +89,8 @@ ATTR_COLS = ['overall', 'club', 'league', 'nationality', 'position', 'height',
              'physicality', 'phys_jumping', 'phys_stamina', 'phys_strength', 'phys_aggression', 'pref_foot', 
              'att_workrate', 'def_workrate', 'weak_foot', 'skill_moves', 'source']
 TARGET = 'price'
+
+
+CHECKPOINT_DICT = {'folder': 'models/checkpoints',
+                   'name': 'weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+                   'path': 'models/checkpoints/weights.{epoch:02d}-{val_loss:.2f}.hdf5'}
