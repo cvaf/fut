@@ -9,7 +9,6 @@ import numpy as np
 # other
 import os
 import sys
-sys.path.append('../database')
 from datetime import datetime
 import joblib
 import warnings
@@ -70,16 +69,12 @@ def data_format(temporal, attributes, num_obs=NUM_OBS):
 	return attr, temp.astype(np.float64)
 
 
-
-if __name__ == '__main__':
-
-	player_id = int(sys.argv[1])
-
-	# Scrape and preprocess the data
+def generate_prediction(player_id):
+	"""
+	Complete prediction pipeline
+	"""
 	df = fetch_data(player_id)
 	df = pipeline(df)
-
-	# Further preprocessing
 
 	# Column assignment
 	drop_cols = ['player_name', 'resource_id', 'date', 'game', 'relative_price']
@@ -101,8 +96,16 @@ if __name__ == '__main__':
 	preds = model.predict([[attr], [temp]])
 	transformed_preds = price_scaler.inverse_transform(preds.reshape(1, -1))
 
+	return transformed_preds
+
+
+if __name__ == '__main__':
+
+	player_id = int(sys.argv[1])
+	preds = generate_prediction(player_id)
+
 	print('Predictions:')
-	print(transformed_preds)
+	print(preds)
 
 
 	

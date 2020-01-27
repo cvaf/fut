@@ -14,8 +14,6 @@ import sys
 
 # scraping imports
 from bs4 import BeautifulSoup
-from lxml import html, etree
-from urllib.request import urlopen
 import json
 import requests
 
@@ -23,12 +21,18 @@ import requests
 from multiprocessing import Pool
 from tqdm import tqdm
 
+
+
+
 def vpn_reconnect():
     os.system('nordvpn d')
     sleep(3)
     os.system('nordvpn c')
     sleep(3)
     print('VPN reconnect.\n')
+
+
+
 
 def fetch_player_soup(player_id):
     """
@@ -52,6 +56,9 @@ def fetch_player_soup(player_id):
 
     return soup
 
+
+
+
 def fetch_price_soup(rid):
     """
     Fetch the price request and process it
@@ -68,6 +75,9 @@ def fetch_price_soup(rid):
         vpn_reconnect()
         soup = fetch_price_soup(rid)
     return soup
+
+
+
 
 def fetch_price(rid):
     """
@@ -91,6 +101,7 @@ def fetch_price(rid):
 
     except:
         print('No prices available for rid: {}'.format(rid))
+
 
 
 
@@ -292,20 +303,26 @@ def fetch_df_prices(df_players, num_processes=10):
     return df
 
 
-if __name__ == '__main__':
-    try:
-        price_update = str(sys.argv[1])
-        print(price_update)
-    except:
-        price_update = input('Fetch prices?')
+def fetch_data():
+    """
+    Create/update/load the players dataframe and create/update/load the prices dataframe.
+    Arguments:
+        - price_update: str, 'y' to update prices
+        - save_file: boolean, True to save the dataframes
+    """
 
-
+    print('Fetching players...')
     df_players = fetch_df_players()
-    df_players.to_pickle('../data/fifa20_players.pkl')
+    df_players.to_pickle('../data/fifa20_players.pkl', protocol=4)
     print('DONE: df_players.\n')
 
-    if price_update == 'y':
-        print('Fetching prices...')
-        df_prices = fetch_df_prices(df_players)
-        df_prices.to_pickle('../data/fifa20_prices.pkl')
-        print('DONE: df_prices.\n')
+    print('Fetching prices...')
+    df_prices = fetch_df_prices(df_players)
+    df_prices.to_pickle('../data/fifa20_prices.pkl', protocol=4)
+    print('DONE: df_prices.\n')
+
+    return df_players, df_prices
+
+
+if __name__ == '__main__':
+    df_players, df_prices =  fetch_data(price_update=price_update)
