@@ -23,7 +23,6 @@ from tqdm import tqdm
 
 
 
-
 def vpn_reconnect():
     os.system('nordvpn d')
     sleep(3)

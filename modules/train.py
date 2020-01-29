@@ -101,7 +101,7 @@ def load_checkpoints(model):
     return model
 
 
-def train(model, data):
+def train(model, data, validation):
     """
     Initiate and train the model
     """
@@ -117,9 +117,16 @@ def train(model, data):
                                       save_best_only=True)]
 
     # Extract the data
-    train_attr = data['train_attr']
-    train_temp = data['train_temp']
-    train_targ = data['train_targ']
+    if validation:
+        train_attr = data['train_attr']
+        train_temp = data['train_temp']
+        train_targ = data['train_targ']
+
+    else:
+        train_attr = data['total_attr']
+        train_temp = data['total_temp']
+        train_targ = data['total_targ']
+
     valid_attr = data['valid_attr']
     valid_temp = data['valid_temp']
     valid_targ = data['valid_targ']
@@ -155,7 +162,7 @@ def run(validation=False):
 
     # Train the model
     print('Training the model...')
-    model, history = train(model, data)
+    model, history = train(model, data, validation)
     print('Done.\n')
 
     if validation:

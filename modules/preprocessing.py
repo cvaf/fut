@@ -77,15 +77,22 @@ def processing(df):
     df['weekday'] = df.date.dt.weekday
 
     # Encode the following variables: league, club and nationality
-    df['league'] = np.where(df.league.isin(TOP_LEAGUES), 'top', 'other')
-    df['club'] = np.where(df.club.isin(TOP_CLUBS), 'top', 'other')
-    df['nationality'] = np.where(df.nationality.isin(TOP_NATIONS), 'top', 'other')
+    df['league'] = np.where(df.league.isin(TOP_LEAGUES), 
+                            'top', 
+                            'other')
+    df['club'] = np.where(df.club.isin(TOP_CLUBS), 
+                          'top', 
+                          'other')
+    df['nationality'] = np.where(df.nationality.isin(TOP_NATIONS), 
+                                 'top', 
+                                 'other')
 
     # Note if there was an active promotion at observation date
     df['promo'] = df['date'].apply(promo_assignment)
 
     # Source: whether the card was obtainable through packs, sbc or objectives
-    # As we're only interested in cards obtainable through packs we can just remove the rest
+    # As we're only interested in cards obtainable through packs,
+    # we can just remove the rest
     resources = df[df.price>0].resource_id.unique()
     df['source'] = np.where(df.resource_id.isin(resources), 'packs', 'other')
     df = df[df.source=='packs']
@@ -101,7 +108,8 @@ def processing(df):
 
 
     # Relative price: how the price changed to the previous day
-    df.sort_values(by=['game', 'resource_id', 'date'], ascending=True, inplace=True)
+    df.sort_values(by=['game', 'resource_id', 'date'], 
+                   ascending=True, inplace=True)
     df_ = df.shift(1)
     df['relative_price'] = np.where(df.resource_id == df.resource_id,
                                     df.price*100/df_.price,
@@ -109,7 +117,8 @@ def processing(df):
     df = df[df.relative_price!='first']
 
     # Drop some columns
-    drop_cols = ['revision', 'age', 'num_games', 'added_date', 'avg_goals', 'avg_assists']
+    drop_cols = ['revision', 'age', 'num_games', 
+                 'added_date', 'avg_goals', 'avg_assists']
     df.drop(drop_cols, axis=1, inplace=True)
 
     # Remove players which aren't as relevant to our prediction problem
@@ -120,18 +129,14 @@ def processing(df):
     return df
 
 
-def train_valid_split(df, validation=False):
+def train_valid_split(df):
     """
     Create a validation set
     """
     cutoff_date = datetime.now() - timedelta(days=30)
     
     df_valid = df[df.date>cutoff_date]
-    if validation:
-        df_train = df[df.date<=cutoff_date]
-    
-    else:
-        df_train = df.copy()
+    df_train = df[df.date<=cutoff_date]
 
     return df_train, df_valid
 
@@ -165,12 +170,14 @@ def attribute_tranformation(df, train=True):
 
     df_attr = df.groupby('custom_id')[ATTR_COLS].first()
 
-    attr_cat = ['club', 'league', 'nationality', 'pref_foot', 'att_workrate', 'def_workrate', 'position', 'source']
+    attr_cat = ['club', 'league', 'nationality', 'pref_foot', 'att_workrate', 
+                'def_workrate', 'position', 'source']
     attr_num = [v for v in df_attr.columns if v not in attr_cat]
     num_mask = df_attr.columns.isin(attr_num)
 
     if train:
-        ct = make_column_transformer((MinMaxScaler(), num_mask), (OneHotEncoder(), ~num_mask))
+        ct = make_column_transformer((MinMaxScaler(), num_mask), 
+                                     (OneHotEncoder(), ~num_mask))
         attr_ct = ct.fit(df_attr)
         joblib.dump(attr_ct, 'models/attr_ct.joblib')
 
@@ -178,12 +185,7 @@ def attribute_tranformation(df, train=True):
         attr_ct = joblib.load('models/attr_ct.joblib')
 
     ids = df_attr.index.values
-    # cols = attr_num + attr_ct.named_transfomers_['onehotencoder'].get_feature_names().tolist()
     data = attr_ct.transform(df_attr)
-
-
-
-    # return pd.DataFrame(data=data, columns=cols, index=ids)
     data_dict = dict(zip(ids, data))
 
     return data_dict
@@ -230,7 +232,8 @@ def format(df, train=True):
     attr_array = np.asarray(attr_data)
 
 
-    assert pids_array.shape[0] == temp_array.shape[0] == targ_array.shape[0] == attr_array.shape[0]
+    assert pids_array.shape[0] == temp_array.shape[0] \
+           == targ_array.shape[0] == attr_array.shape[0]
 
     return pids_array, targ_array, temp_array, attr_array
 
@@ -239,7 +242,7 @@ def format(df, train=True):
 
 
 
-def run(validation=False):
+def run():
     """
     Load the data, process it and return the correct data format
     """
@@ -257,24 +260,24 @@ def run(validation=False):
                                df.resource_id.astype(str) + '19')
     df.drop('resource_id', axis=1, inplace=True)
 
-    df_train, df_valid = train_valid_split(df, validation=validation)
+    df_train, df_valid = train_valid_split(df)
 
     print('Formatting...')
-    train_pids, train_targ, train_temp, train_attr = format(df_train)
+    total_pids, total_targ, total_temp, total_attr = format(df)
+    train_pids, train_targ, train_temp, train_attr = format(df_train, train=False)
     valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid, train=False)
     print('Done.\n')
     
-
-    if validation: 
-        val = 1
-    else:
-        val = 0
         
     date = datetime.now()
     file_num = (int(date.month) * 100) + int(date.day) 
-    file_name = 'data/{}_{}.npz'.format(str(file_num), str(val))
-    np.savez(file_name, train_pids=train_pids, train_targ=train_targ, train_temp=train_temp,
-             train_attr=train_attr, valid_pids=valid_pids, valid_targ=valid_targ,
+    file_name = 'data/{}.npz'.format(str(file_num))
+    np.savez(file_name, 
+             total_pids=total_pids, total_targ=total_targ, 
+             total_temp=total_temp, total_attr=total_attr,
+             train_pids=train_pids, train_targ=train_targ, 
+             train_temp=train_temp, train_attr=train_attr, 
+             valid_pids=valid_pids, valid_targ=valid_targ,
              valid_temp=valid_temp, valid_attr=valid_attr)
 
     print('DONE: preprocessing.\n')

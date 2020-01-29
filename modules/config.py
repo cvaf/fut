@@ -1,5 +1,6 @@
 from datetime import datetime
 from numpy import dtype
+date = datetime.now()
 
 TOP_LEAGUES = ['Premier League', 'Serie A TIM', 'LaLiga Santander',
                'Ligue 1 Conforama', 'Bundesliga']
@@ -102,7 +103,9 @@ ATTR_COLS = ['overall', 'club', 'league', 'nationality', 'position', 'height',
              'weak_foot', 'skill_moves', 'source']
 TARGET = 'price'
 
-ckpt_path = 'models/checkpoints/weights.{epoch:02d}-{val_loss:.2f}.hdf5'
+ckpt_date = 'weights' + str(int(date.month * 100) + int(date.day))
+ckpt_name = ckpt_date + '.{epoch:02d}-{val_loss:.2f}.hdf5'
+ckpt_path = 'models/checkpoints/' + ckpt_name
 CHECKPOINT_DICT = {'folder': 'models/checkpoints',
-                   'name': 'weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+                   'name': ckpt_name,
                    'path': ckpt_path}

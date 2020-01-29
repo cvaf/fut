@@ -7,6 +7,8 @@ sys.path.append('modules')
 
 from update import fetch_data
 from preprocessing import run as process
+from train import run as train_sophie
+from evaluation import run as evaluate
 
 def option_to_boolean(option):
     if option == 'y':
@@ -31,7 +33,18 @@ def run(update, train, validation):
         df_players, df_prices = fetch_data()
 
         # Process the updated data and save it as an array
-        process(validation=validation)
+        process()
 
     if train:
-        
+        print('Training')
+        # Retrain the model
+        train_sophie(validation=validation)
+
+        # If there's a validation set, produce an evaluation dataframe 
+        if validation:
+            print('Evaluating')
+            evaluate()
+
+
+if __name__ == '__main__':
+    run()

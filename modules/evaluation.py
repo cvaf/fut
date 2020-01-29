@@ -20,12 +20,12 @@ def load_latest():
     """
 
     all_models = os.listdir('models')
-    h5_models = np.sort([x for x in all_models if '.h5' in x])
-
-    model_file = os.path.join('models', h5_models[-1])
+    latest_model = np.sort([x for x in all_models if '_1.h5' in x])[-1]
+    model_file = os.path.join('models', latest_model)
     model = load_model(model_file)
 
-    return model
+    model_name = latest_model[:-3]
+    return model, model_name
 
 
 
@@ -112,19 +112,10 @@ def evaluate_predictions(data):
         acc_col = 'acc{}'.format(i)
         df[acc_col] = np.where(df[eva_col] == 0, 0, 1)
 
-
-    # Create a prediction dataframe
-    df_preds = pd.DataFrame(data=data['pids'], columns=['pids'])
-    for i in range(3):
-        df_preds['preds{}'.format(i)] = data['preds'][:, i]
-        df_preds['target{}'.format(i)] = data['target'][:, i]
-
-
     df = df.groupby(['pids']).mean().reset_index()
 
     # Remove game from player id
     df['pids'] = df.pids.apply(lambda x: x[:-2])
-    df_preds['pids'] = df_preds.pids.apply(lambda x: x[:-2])
 
     # Create a weighted accuracy and evaluation rating
     df['eva'] = ((df.eva0 * 3) + (df.eva1 * 2) + (df.eva2)) / 6
@@ -132,19 +123,29 @@ def evaluate_predictions(data):
 
     df = df[['pids', 'eva', 'acc']].round(2)
 
-    return df, df_preds
+    return df
 
 
 def run():
 
+    print('Loading latest model...')
     # Load the latest model
-    model = load_latest()
+    model, model_name = load_latest()
+    print('Done: Loaded {}\n'.format(model_name))
 
+    print('Generating predictions...')
     # Produce predictions for our validation set
     data = generate_predictions(model)
+    print('Done.\n')
 
     # Evaluate the predictions generated above.
-    df, df_preds = evaluate_predictions(data)
+    print('Evaluating predictions...')
+    df = evaluate_predictions(data)
+    print('Done.\n')
+
+    df.to_pickle('data/evaluation_{}.pkl'.format(model_name), protocol=4)
+
+
 
 
 
