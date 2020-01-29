@@ -261,7 +261,7 @@ def run(validation=False):
 
     print('Formatting...')
     train_pids, train_targ, train_temp, train_attr = format(df_train)
-    valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid)
+    valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid, train=False)
     print('Done.\n')
     
 

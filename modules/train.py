@@ -2,7 +2,6 @@
 Train/retrain sophie
 """
 import numpy as np
-
 import os
 import sys
 from datetime import datetime, timedelta
@@ -165,6 +164,7 @@ def run(validation=False):
         val=0
 
     print('Saving the model...')
+    model = load_checkpoints(model)
     model_num = (int(date.month) * 100) + int(date.day) 
     model_name = 'models/{}_{}.h5'.format(str(model_num), str(val))
     model.save(model_name)

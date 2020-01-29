@@ -129,7 +129,7 @@ def fetch_player(player_id):
     data.append(player_name)
     data.append(soup.find('h1', {'class': 'player_header header_top pb-0'}).text.strip()[:2])
     data.append(soup.find('div', {'id': 'Player-card'})['class'][-3] + ' ' + \
-                      soup.find('div', {'id': 'Player-card'})['class'][-2])
+                soup.find('div', {'id': 'Player-card'})['class'][-2])
     data.append(soup.find('div', {'id': 'page-info'})['data-player-resource'])
     position = soup.find('div', {'id': 'page-info'})['data-position']
     data.append(position)

@@ -1,6 +1,7 @@
 """
 Main script
 """
+import click
 import sys
 sys.path.append('modules')
 
@@ -13,12 +14,10 @@ def option_to_boolean(option):
     else:
         return False
 
-import click
 @click.command()
 @click.option('--update', default='n', help='Use y to fetch new players and prices')
 @click.option('--train', default='n', help='Use y to train  the model')
 @click.option('--validation', default='n', help='Use y to use a validation set')
-
 
 def run(update, train, validation):
 
