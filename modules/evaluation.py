@@ -114,6 +114,7 @@ def evaluate_predictions(data):
 
     df = df.groupby(['pids']).mean().reset_index()
 
+
     # Remove game from player id
     df['pids'] = df.pids.apply(lambda x: x[:-2])
 

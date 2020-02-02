@@ -7,6 +7,7 @@ pricey/model_evaluation.ipynb
 # Folders
 data/
 models/checkpoints
+modules/new_update.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
