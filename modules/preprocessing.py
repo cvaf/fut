@@ -23,6 +23,12 @@ def load_data():
     Load the FIFA19 and FIFA20 price dataframes and append them together
     """
 
+    df18 = pd.read_pickle('data/fifa18_prices.pkl')
+    df18 = df18[df18.club!='Icons']
+    df18 = df18[df18.columns]
+    df18['age'] = df18.age.apply(lambda x: x.split(' ')[0]).astype(int)
+    df18 = df18.dropna(subset=['price']).reset_index(drop=True)
+
     # Load FIFA 19 dataframe
     df19 = pd.read_csv('data/fifa19_prices.csv', index_col='Unnamed: 0', 
                         parse_dates=['added_date', 'date'])
@@ -41,11 +47,14 @@ def load_data():
         col = df20.columns[i]
         dtype = df19.dtypes[i]
         df20[col] = df20[col].astype(dtype)
+        df18[col] = df18[col].astype(dtype)
 
     # Create a game column and join the two together
+    df18['game'] = 'FIFA 18'
     df19['game'] = 'FIFA 19'
     df20['game'] = 'FIFA 20'
-    df = df19.append(df20)
+    df1819 = df18.append(df19)
+    df = df1819.append(df20)
 
     return df
 
@@ -98,12 +107,16 @@ def processing(df):
     df = df[df.source=='packs']
 
     # Days from release
+    FIFA18_release = df[df.game=='FIFA 18'].date.min()
     FIFA19_release = df[df.game=='FIFA 19'].date.min()
     FIFA20_release = df[df.game=='FIFA 20'].date.min()
 
     df['days_release'] = np.where(df.game=='FIFA 19', 
                                  (df.date - FIFA19_release).dt.days,
                                  (df.date - FIFA20_release).dt.days)
+    df['days_release'] = np.where(df.game=='FIFA 18',
+                                  (df.date - FIFA18_release).dt.days,
+                                  df.days_release)
     df['days_release'] = df.days_release / 365    # scale it between 0 and 1
 
 

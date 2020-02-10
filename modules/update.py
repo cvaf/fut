@@ -23,16 +23,6 @@ from tqdm import tqdm
 
 
 
-def vpn_reconnect():
-    os.system('nordvpn d')
-    sleep(3)
-    os.system('nordvpn c')
-    sleep(3)
-    print('VPN reconnect.\n')
-
-
-
-
 def fetch_player_soup(player_id):
     """
     Fetch the request and process it with bs4
@@ -48,10 +38,10 @@ def fetch_player_soup(player_id):
     if 'does not have permission' in soup.text:
         # _ = input('Access denied. Proceed?')
         print('Access denied.')
-        vpn_reconnect()
-
-        # vpn reconnect
-        soup = fetch_soup(player_id)
+        os.system('say "Please reconnect."')
+        proc = input('Proceed?')
+        if proc == 'y':
+            soup = fetch_soup(player_id)
 
     return soup
 
@@ -69,10 +59,14 @@ def fetch_price_soup(rid):
     url = 'https://www.futbin.com/20/playerGraph?type=daily_graph&year=20&player=' + str(rid)
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, features='lxml')
+
     if 'does not have permission' in soup.text:
         print('Access denied.')
-        vpn_reconnect()
-        soup = fetch_price_soup(rid)
+        os.system('say "Please reconnect."')
+        proc = input('Proceed?')
+        if proc == 'y':
+            soup = fetch_price_soup(rid)
+
     return soup
 
 
@@ -126,7 +120,14 @@ def fetch_player(player_id):
         return data
 
     data.append(player_name)
-    data.append(soup.find('h1', {'class': 'player_header header_top pb-0'}).text.strip()[:2])
+
+
+    try: 
+        rating = soup.find('div', {'class': 'pcdisplay-rate'}).text
+    except:
+        rating = soup.find('div', {'class': 'pcdisplay-rat'}).text
+    data.append(rating)
+    
     data.append(soup.find('div', {'id': 'Player-card'})['class'][-3] + ' ' + \
                 soup.find('div', {'id': 'Player-card'})['class'][-2])
     data.append(soup.find('div', {'id': 'page-info'})['data-player-resource'])
