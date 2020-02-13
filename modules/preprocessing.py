@@ -7,7 +7,10 @@ import numpy as np
 
 # other
 from datetime import datetime, timedelta
-from config import *
+try:
+    from config import *
+except:
+    from modules.config import *
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -23,17 +26,19 @@ def load_data():
     Load the FIFA19 and FIFA20 price dataframes and append them together
     """
 
-    df18 = pd.read_pickle('data/fifa18_prices.pkl')
-    df18 = df18[df18.club!='Icons']
-    df18 = df18[df18.columns]
-    df18['age'] = df18.age.apply(lambda x: x.split(' ')[0]).astype(int)
-    df18 = df18.dropna(subset=['price']).reset_index(drop=True)
 
     # Load FIFA 19 dataframe
     df19 = pd.read_csv('data/fifa19_prices.csv', index_col='Unnamed: 0', 
                         parse_dates=['added_date', 'date'])
     df19.drop('quality', axis=1, inplace=True)
     df19 = df19[df19!='Icons'].reset_index(drop=True)
+
+    # Load FIFA 18 dataframe
+    df18 = pd.read_pickle('data/fifa18_prices.pkl')
+    df18 = df18[df18.club!='Icons']
+    df18 = df18[df19.columns]
+    df18['age'] = df18.age.apply(lambda x: x.split(' ')[0]).astype(int)
+    df18 = df18.dropna(subset=['price']).reset_index(drop=True)
 
     # Load FIFA 20 dataframe
     df20 = pd.read_pickle('data/fifa20_prices.pkl')
