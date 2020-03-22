@@ -16,7 +16,9 @@ TOP_CLUBS = ['Manchester United', 'Manchester City', 'Chelsea', 'Liverpool',
 TOP_NATIONS = ['Spain', 'France', 'Brazil', 'Germany', 'Argentina', 'England',
                'Italy', 'Portugal', 'Holland', 'Belgium']
 
-PROMO_DATES = [[datetime(2020, 1, 17), datetime(2020, 1, 25)],    # headliners
+PROMO_DATES = [[datetime(2020, 2, 21), datetime(2020, 3, 5)],     # Shapeshift
+               [datetime(2020, 1, 31), datetime(2020, 2, 14)],    # FFS
+               [datetime(2020, 1, 17), datetime(2020, 1, 31)],    # headliners
                [datetime(2020, 1, 6), datetime(2020, 1, 13)],     # TOTY
                [datetime(2019, 12, 14), datetime(2019, 12, 24)],  # futmas
                [datetime(2019, 12, 6), datetime(2019, 12, 13)],   # TOTGS
@@ -90,7 +92,7 @@ COLUMN_DTYPES = [dtype('O'), dtype('O'), dtype('int64'), dtype('O'),
 
 
 DROP_COLS = ['player_name', 'date', 'game', 'relative_price', 'custom_id']
-TEMP_COLS = ['promo', 'weekday', 'days', 'days_release', 'price']
+TEMP_COLS = ['promo', 'weekday', 'days', 'days_release', 'availability', 'price']
 ATTR_COLS = ['overall', 'club', 'league', 'nationality', 'position', 'height',
              'weight', 'intl_rep', 'pace', 'pace_acceleration',
              'pace_sprint_speed', 'dribbling', 'drib_agility', 'drib_balance',

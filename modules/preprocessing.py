@@ -134,13 +134,25 @@ def processing(df):
                                     'first')
     df = df[df.relative_price!='first']
 
+    # Add an availability variable
+    df['availability'] = np.where(df.days<=7, 1, 0)
+    df['availability'] = np.where(df.revision.isin(['Normal', 'CL']), 
+                                  1, df.availability)
+
+    # Remove some players
+    revision_stopwords = ['SBC', 'POTM', 'Obj', 'Moments', 'League', 
+                          'Special', 'FUTmas']
+    good_revisions = [x for x in df.revision.unique() if not\
+                      any(xs in x for xs in revision_stopwords)]
+    df = df[df.revision.isin(good_revisions)].reset_index(drop=True)
+
     # Drop some columns
     drop_cols = ['revision', 'age', 'num_games', 
                  'added_date', 'avg_goals', 'avg_assists']
     df.drop(drop_cols, axis=1, inplace=True)
 
     # Remove players which aren't as relevant to our prediction problem
-    df = df[(df.price!=0) & (df.overall>=84)].reset_index(drop=True)
+    df = df[(df.price!=0) & (df.overall>=83)].reset_index(drop=True)
     expensive_resources = df[df.price>1000000].resource_id.unique()
     df = df[~df.resource_id.isin(expensive_resources)]
 
@@ -189,7 +201,7 @@ def attribute_tranformation(df, train=True):
     df_attr = df.groupby('custom_id')[ATTR_COLS].first()
 
     attr_cat = ['club', 'league', 'nationality', 'pref_foot', 'att_workrate', 
-                'def_workrate', 'position', 'source']
+                'def_workrate', 'position', 'source', 'availability']
     attr_num = [v for v in df_attr.columns if v not in attr_cat]
     num_mask = df_attr.columns.isin(attr_num)
 
@@ -275,7 +287,13 @@ def run():
 
     df['custom_id'] = np.where(df.game == 'FIFA 20',
                                df.resource_id.astype(str) + '20',
-                               df.resource_id.astype(str) + '19')
+                               np.nan)
+    df['custom_id'] = np.where(df.game == 'FIFA 19',
+                               df.resource_id.astype(str) + '19',
+                               df.custom_id)
+    df['custom_id'] = np.where(df.game == 'FIFA 18',
+                               df.resource_id.astype(str) + '18',
+                               df.custom_id)
     df.drop('resource_id', axis=1, inplace=True)
 
     df_train, df_valid = train_valid_split(df)

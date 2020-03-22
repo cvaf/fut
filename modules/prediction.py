@@ -15,7 +15,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # custom modules
-from preprocessing import fetch_data, pipeline
+from preprocessing import load_data, processing
 from config import NUM_OBS, NUM_STEPS
 
 # modeling
@@ -25,7 +25,8 @@ from tensorflow.keras.models import load_model
 temp_scaler = joblib.load('../models/temp_scaler.joblib')
 price_scaler = joblib.load('../models/price_scaler.joblib')
 attr_ct = joblib.load('../models/attr_ct.joblib')
-model = load_model('../models/model_7_3.h5')
+latest_model = [x for x in os.listdir('../models') if '.h5' in x][-1]
+model = load_model(f'../models/{latest_model}')
 
 
 def temporal_transformation(df_temp, temp_scaler=temp_scaler, price_scaler=price_scaler):
@@ -73,8 +74,8 @@ def generate_prediction(player_id):
 	"""
 	Complete prediction pipeline
 	"""
-	df = fetch_data(player_id)
-	df = pipeline(df)
+	df = load_data(player_id)
+	df = processing(df)
 
 	# Column assignment
 	drop_cols = ['player_name', 'resource_id', 'date', 'game', 'relative_price']

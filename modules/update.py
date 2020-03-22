@@ -111,9 +111,10 @@ def fetch_player(player_id):
 
     data = [player_id]
 
+    info = soup.findAll('td', {'class': 'table-row-text'})
     # exception in case there's no player at this ID
     try:
-        player_name = soup.find('span', {'class': 'header_name'}).text
+        player_name = info[0].text
     except:
         for j in range(56):
             data.append(0)
@@ -145,12 +146,9 @@ def fetch_player(player_id):
     data.append(player_stats[-2].text.split()[-1])
     data.append(player_stats[-3].text.split()[-1])
 
-    # information
-    info = soup.findAll('td', {'class': 'table-row-text'})
-
     # some are missing international reputation
     try:
-        age = info[16].text.strip()
+        age = info[17].text.strip()
         for i in range(1, 15):
             if i == 8:
                 stat = info[i].text.strip()[:3]
