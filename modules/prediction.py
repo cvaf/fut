@@ -14,9 +14,11 @@ import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
+sys.path.append('modules')
+
 # custom modules
 from preprocessing import load_data, processing
-from config import NUM_OBS, NUM_STEPS
+from constants import NUM_OBS, NUM_STEPS
 
 # modeling
 from tensorflow.keras.models import load_model

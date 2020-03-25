@@ -1,16 +1,21 @@
 """
 Preprocessing script that prepares the raw data for modeling
 """
+import os 
+import sys
 
 import pandas as pd
 import numpy as np
 
+sys.path.append('modules')
+
 # other
 from datetime import datetime, timedelta
-try:
-    from config import *
-except:
-    from modules.config import *
+
+# custom modules
+from constants import PROMO_DATES, TOP_LEAGUES, TOP_CLUBS, TOP_NATIONS, \
+    TEMP_COLS, ATTR_COLS
+
 import warnings
 warnings.filterwarnings('ignore')
 

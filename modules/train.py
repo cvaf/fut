@@ -7,8 +7,11 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+sys.path.append('modules')
+
 # Custom modules
-from config import NUM_OBS, NUM_STEPS, CHECKPOINT_DICT
+from constants import NUM_OBS, NUM_STEPS
+from config import CHECKPOINT_DICT
 
 # processing & model selection
 import joblib

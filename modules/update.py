@@ -3,24 +3,24 @@ Module containing functions for updating the player
 and prices dataframes
 """
 
-import pandas as pd
-import numpy as np
-
-# other
-from datetime import datetime
-from time import time, strftime, localtime, sleep
 import os
 import sys
+
+sys.path.append('modules')
+
+import pandas as pd
+import numpy as np
+from datetime import datetime
+from time import time, strftime, localtime, sleep
 
 # scraping imports
 from bs4 import BeautifulSoup
 import json
 import requests
-
-# multiprocessing
 from multiprocessing import Pool
 from tqdm import tqdm
 
+from constants import BASE_URL, COLUMNS_PLAYERS, COLUMN_TYPES
 
 
 def fetch_player_soup(player_id):
@@ -32,7 +32,7 @@ def fetch_player_soup(player_id):
         - soup: request
     """
 
-    resp = requests.get('https://www.futbin.com/20/player/' + str(player_id))
+    resp = requests.get(BASE_URL + '/20/player/' + str(player_id))
     soup = BeautifulSoup(resp.text, features='lxml')
 
     if 'does not have permission' in soup.text:
@@ -46,8 +46,6 @@ def fetch_player_soup(player_id):
     return soup
 
 
-
-
 def fetch_price_soup(rid):
     """
     Fetch the price request and process it
@@ -56,7 +54,7 @@ def fetch_price_soup(rid):
     Returns:
         - soup: requested soup
     """
-    url = 'https://www.futbin.com/20/playerGraph?type=daily_graph&year=20&player=' + str(rid)
+    url = BASE_URL + '20/playerGraph?type=daily_graph&year=20&player=' + str(rid)
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, features='lxml')
 
@@ -68,8 +66,6 @@ def fetch_price_soup(rid):
             soup = fetch_price_soup(rid)
 
     return soup
-
-
 
 
 def fetch_price(rid):
@@ -96,9 +92,7 @@ def fetch_price(rid):
         print('No prices available for rid: {}'.format(rid))
 
 
-
-
-def fetch_player(player_id):
+def fetch_player(player_id, game='20'):
     """
     Fetch all relevant data on a particular player. 
     Arguments:
@@ -109,7 +103,7 @@ def fetch_player(player_id):
 
     soup = fetch_player_soup(player_id)
 
-    data = [player_id]
+    data = [player_id, f'FIFA{game}']
 
     info = soup.findAll('td', {'class': 'table-row-text'})
     # exception in case there's no player at this ID
@@ -129,9 +123,16 @@ def fetch_player(player_id):
         rating = soup.find('div', {'class': 'pcdisplay-rat'}).text
     data.append(rating)
     
-    data.append(soup.find('div', {'id': 'Player-card'})['class'][-3] + ' ' + \
-                soup.find('div', {'id': 'Player-card'})['class'][-2])
-    data.append(soup.find('div', {'id': 'page-info'})['data-player-resource'])
+    quality = soup.find('div', {'id': 'Player-card'})['class'][-3] + ' ' + \
+        soup.find('div', {'id': 'Player-card'})['class'][-2]
+    data.append(quality)
+
+    resource_id = soup.find('div', {'id': 'page-info'})['data-player-resource']
+    data.append(resource_id)
+
+    player_key = f'{resource_id}_{game}'
+    data.append(player_key)
+
     position = soup.find('div', {'id': 'page-info'})['data-position']
     data.append(position)
 
@@ -171,8 +172,6 @@ def fetch_player(player_id):
             data.append(stat)
         data.append(info[15].text.strip())
 
-
-    
 
     # attributes
     stats = json.loads(soup.find('div', {'id': 'player_stats_json'}).text.strip())
@@ -220,7 +219,7 @@ def fetch_latest_pid():
     return int(pid)
 
 
-def fetch_df_players(num_processes=10):
+def fetch_df_players(engine, num_processes=10):
     """
     Create or update the dataframe
     Arguments:
@@ -232,27 +231,19 @@ def fetch_df_players(num_processes=10):
     # fetch the latest available pid
     latest_pid = fetch_latest_pid()
 
-    # if no dataframe was passed, create one
-    cols = ['player_id', 'player_name', 'overall', 'quality', 'resource_id', 'position', 
-            'num_games', 'avg_goals', 'avg_assists','club', 'nationality', 'league', 'skill_moves',
-            'weak_foot', 'intl_rep', 'pref_foot', 'height', 'weight', 'revision', 
-            'def_workrate', 'att_workrate', 'added_date', 'origin', 'age', 'pace', 'pace_acceleration', 
-            'pace_sprint_speed', 'shooting', 'shoot_positioning', 'shoot_finishing', 
-            'shoot_shot_power', 'shoot_long_shots', 'shoot_volleys', 'shoot_penalties', 
-            'passing', 'pass_vision', 'pass_crossing', 'pass_free_kick', 'pass_short', 
-            'pass_long', 'pass_curve', 'dribbling', 'drib_agility', 'drib_balance', 
-            'drib_reactions', 'drib_ball_control', 'drib_dribbling', 'drib_composure', 
-            'defending', 'def_interceptions', 'def_heading', 'def_marking', 'def_stand_tackle',
-            'def_slid_tackle', 'physicality', 'phys_jumping', 'phys_stamina', 'phys_strength', 
-            'phys_aggression']
+    # Find the latest player_id
 
-    if os.path.exists('data/fifa20_players.pkl'):
-        df = pd.read_pickle('data/fifa20_players.pkl')
-        current_pid = df.player_id.values[-1]
-    else:
-        df = pd.DataFrame(columns=cols)
+    ## TODO Confirm this works once we have sqlite setup
+    try:
+        query = """
+            SELECT MAX(player_id)
+            FROM players
+            WHERE game='FIFA20'
+                """
+        current_pid = engine.execute(query)[0]
+
+    except:
         current_pid = 0
-
 
     # number of players to collect
     total_pids = latest_pid - current_pid
@@ -261,11 +252,7 @@ def fetch_df_players(num_processes=10):
     with Pool(num_processes) as p:
         players_data = list(tqdm(p.imap(fetch_player, pids), total=total_pids))
 
-    if df.shape[0] == 0:
-        df = pd.DataFrame(data=players_data, columns=cols)
-    else:
-        new_df = pd.DataFrame(data=players_data, columns=cols)
-        df = df.append(new_df)
+    df = pd.DataFrame(data=players_data, columns=COLUMNS_PLAYERS)
 
     df = df[df.phys_aggression.notnull()].reset_index(drop=True)
     df.sort_values(by='player_id', ascending=True, inplace=True)
@@ -273,18 +260,30 @@ def fetch_df_players(num_processes=10):
     return df
 
 
-def fetch_df_prices(df_players, num_processes=10):
+def fetch_df_prices(engine, num_processes=10):
     """
     Function used to fetch the prices for all players in the players dataframe.
     
     Arguments:
-        df_players: player dataframe
-        num_processes: how many processes to use, default=10
+        engine: sqlite connection object
+        num_processes: int
+            How many processes to use. Default=10
     Returns:
-        df_price: our new dataframe with the prices
+        df_prices: pandas dataframe
+            ['player_key', 'resource_id', 'price']
     """
 
-    rids = df_players.resource_id.values
+    query = """
+        SELECT
+            player_key, 
+            resource_id
+        FROM players
+        WHERE game = 'FIFA20'
+            """
+
+    df_keys = pd.read_sql_query(query, engine)
+
+    rids = df_keys.resource_id.values
 
     # number of players to collect
     total_rids = len(rids)
@@ -297,27 +296,54 @@ def fetch_df_prices(df_players, num_processes=10):
     prices = np.concatenate(prices)
 
     df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
-    df = df_players.merge(df_prices, on='resource_id', how='left')
-    return df
+    df_prices = df_prices.merge(df_keys, on='resource_id', how='inner')
+    df_prices = df_prices[['player_key', 'date', 'price']]
+
+    # Load the prices from the older games.
+    query_old = """
+        SELECT
+            player_key,
+            date,
+            price
+        FROM prices
+        WHERE game != 'FIFA20'
+                """
+    df_old_prices = pd.read_sql_query(query_old, engine)
+    df_prices = df_old_prices.append(df_prices)
+    df_prices.reset_index(drop=True, inplace=True)
+
+    return df_prices
 
 
-def fetch_data():
+def fetch_data(engine):
     """
     Create/update/load the players dataframe and create/update/load the prices dataframe.
     """
 
     print('Fetching players...')
-    df_players = fetch_df_players()
-    df_players.to_pickle('data/fifa20_players.pkl', protocol=4)
+    df_players = fetch_df_players(engine)
+    try:
+        df_players.to_sql('players', engine, index=False, dtype=COLUMN_TYPES, 
+            if_exists='append')
+    except:
+        print('Saving locally.')
+        df_players.to_pickle('data/fifa20_newplayers.pkl', protocol=4)
     print('DONE: df_players.\n')
 
     print('Fetching prices...')
-    df_prices = fetch_df_prices(df_players)
-    df_prices.to_pickle('data/fifa20_prices.pkl', protocol=4)
+    df_prices = fetch_df_prices(engine)
+    try: 
+        df_prices.to_sql('prices', engine, index=False, dtype=COLUMN_TYPES,
+            if_exists='replace')
+    except:
+        print('Saving locally')
+        df_prices.to_pickle('data/fifa20_newprices.pkl', protocol=4)
     print('DONE: df_prices.\n')
 
     return df_players, df_prices
 
 
 if __name__ == '__main__':
-    df_players, df_prices =  fetch_data()
+    from sqlalchemy import create_engine
+    engine = create_engine('sqlite:///data/fifa.db', echo=False)
+    df_players, df_prices =  fetch_data(engine)
