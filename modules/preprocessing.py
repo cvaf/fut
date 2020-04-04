@@ -14,10 +14,12 @@ from datetime import datetime, timedelta
 
 # custom modules
 from constants import PROMO_DATES, TOP_LEAGUES, TOP_CLUBS, TOP_NATIONS, \
-    TEMP_COLS, ATTR_COLS
+    TEMP_COLS, ATTR_COLS, NUM_OBS, NUM_STEPS
 
 import warnings
 warnings.filterwarnings('ignore')
+
+from sqlalchemy import create_engine
 
 # model-related
 import joblib
@@ -28,46 +30,15 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 def load_data():
     """
-    Load the FIFA19 and FIFA20 price dataframes and append them together
+    Load the player and prices dataframes and merge them together
     """
+    engine = create_engine('sqlite:///data/fifa.db', echo=False)
 
-
-    # Load FIFA 19 dataframe
-    df19 = pd.read_csv('data/fifa19_prices.csv', index_col='Unnamed: 0', 
-                        parse_dates=['added_date', 'date'])
-    df19.drop('quality', axis=1, inplace=True)
-    df19 = df19[df19!='Icons'].reset_index(drop=True)
-
-    # Load FIFA 18 dataframe
-    df18 = pd.read_pickle('data/fifa18_prices.pkl')
-    df18 = df18[df18.club!='Icons']
-    df18 = df18[df19.columns]
-    df18['age'] = df18.age.apply(lambda x: x.split(' ')[0]).astype(int)
-    df18 = df18.dropna(subset=['price']).reset_index(drop=True)
-
-    # Load FIFA 20 dataframe
-    df20 = pd.read_pickle('data/fifa20_prices.pkl')
-    df20 = df20[df20.club!='Icons']
-    df20 = df20[df19.columns]
-    df20['age'] = df20.age.apply(lambda x: x.split(' ')[0]).astype(int)
-    df20 = df20.dropna(subset=['price']).reset_index(drop=True)
-
-    # Align the dtypes between the two
-    for i in range(df19.shape[1]):
-        col = df20.columns[i]
-        dtype = df19.dtypes[i]
-        df20[col] = df20[col].astype(dtype)
-        df18[col] = df18[col].astype(dtype)
-
-    # Create a game column and join the two together
-    df18['game'] = 'FIFA 18'
-    df19['game'] = 'FIFA 19'
-    df20['game'] = 'FIFA 20'
-    df1819 = df18.append(df19)
-    df = df1819.append(df20)
+    df_players = pd.read_sql_table('players', engine)
+    df_prices = pd.read_sql_table('prices', engine)
+    df = df_players.merge(df_prices, on=['player_key'], how='inner')
 
     return df
-
 
 
 def promo_assignment(ds):
@@ -117,14 +88,14 @@ def processing(df):
     df = df[df.source=='packs']
 
     # Days from release
-    FIFA18_release = df[df.game=='FIFA 18'].date.min()
-    FIFA19_release = df[df.game=='FIFA 19'].date.min()
-    FIFA20_release = df[df.game=='FIFA 20'].date.min()
+    FIFA18_release = df[df.game=='FIFA18'].date.min()
+    FIFA19_release = df[df.game=='FIFA19'].date.min()
+    FIFA20_release = df[df.game=='FIFA20'].date.min()
 
-    df['days_release'] = np.where(df.game=='FIFA 19', 
+    df['days_release'] = np.where(df.game=='FIFA19', 
                                  (df.date - FIFA19_release).dt.days,
                                  (df.date - FIFA20_release).dt.days)
-    df['days_release'] = np.where(df.game=='FIFA 18',
+    df['days_release'] = np.where(df.game=='FIFA18',
                                   (df.date - FIFA18_release).dt.days,
                                   df.days_release)
     df['days_release'] = df.days_release / 365    # scale it between 0 and 1
@@ -179,7 +150,7 @@ def train_valid_split(df):
 
 def temporal_transformation(df, train=True):
 
-    df_temp = df.groupby(['custom_id', 'date'])[TEMP_COLS].first().reset_index(1)
+    df_temp = df.groupby(['player_key', 'date'])[TEMP_COLS].first().reset_index(1)
     temp_num = ['weekday', 'days']
 
     # Load transformers
@@ -203,7 +174,7 @@ def temporal_transformation(df, train=True):
 
 def attribute_tranformation(df, train=True):
 
-    df_attr = df.groupby('custom_id')[ATTR_COLS].first()
+    df_attr = df.groupby('player_key')[ATTR_COLS].first()
 
     attr_cat = ['club', 'league', 'nationality', 'pref_foot', 'att_workrate', 
                 'def_workrate', 'position', 'source', 'availability']
@@ -273,10 +244,6 @@ def format(df, train=True):
     return pids_array, targ_array, temp_array, attr_array
 
 
-
-
-
-
 def run():
     """
     Load the data, process it and return the correct data format
@@ -290,17 +257,6 @@ def run():
     df = processing(df)
     print('Done.\n')
 
-    df['custom_id'] = np.where(df.game == 'FIFA 20',
-                               df.resource_id.astype(str) + '20',
-                               np.nan)
-    df['custom_id'] = np.where(df.game == 'FIFA 19',
-                               df.resource_id.astype(str) + '19',
-                               df.custom_id)
-    df['custom_id'] = np.where(df.game == 'FIFA 18',
-                               df.resource_id.astype(str) + '18',
-                               df.custom_id)
-    df.drop('resource_id', axis=1, inplace=True)
-
     df_train, df_valid = train_valid_split(df)
 
     print('Formatting...')
@@ -309,10 +265,8 @@ def run():
     valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid, train=False)
     print('Done.\n')
     
-        
-    date = datetime.now()
-    file_num = (int(date.month) * 100) + int(date.day) 
-    file_name = 'data/{}.npz'.format(str(file_num))
+    datestamp = datetime.now().strftime('%Y%m%d')
+    file_name = f'data/{datestamp}.npz'
     np.savez(file_name, 
              total_pids=total_pids, total_targ=total_targ, 
              total_temp=total_temp, total_attr=total_attr,

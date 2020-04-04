@@ -5,7 +5,7 @@
 By scraping the web, we can collect and store player attributes and their prices into dataframes. This is done through the [update](https://github.com/cvaf/fut/blob/master/modules/update.py) script. You can run it with the following:
 
 ```bash
-python demon.py --update y
+./demon.py --update 
 ```
 
 ## Processing
@@ -22,10 +22,13 @@ There are two notebooks in the [modules](https://github.com/cvaf/fut/tree/master
 One can train the latest sophie model using:
 
 ```bash
-python demon.py --train y
+./app.py --help
 
-# use the following to evaluate the model
-python demon.py --train y --validation y
+Options:
+  --update      Fetch new players and prices
+  --train       Train  the model
+  --validation  Use a validation set
+  --help        Show this message and exit.
 ```
 
 ## Evaluation
@@ -49,3 +52,4 @@ Following are a few example predictions. (Step X means the prediction was genera
 - [ ] Switch to sqlite
 - [ ] Add logging
 - [ ] Fix model persistence
+- [ ] Tweak feature engineering

@@ -23,7 +23,6 @@ from constants import NUM_OBS, NUM_STEPS
 # modeling
 from tensorflow.keras.models import load_model
 
-
 temp_scaler = joblib.load('../models/temp_scaler.joblib')
 price_scaler = joblib.load('../models/price_scaler.joblib')
 attr_ct = joblib.load('../models/attr_ct.joblib')

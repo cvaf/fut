@@ -20,7 +20,10 @@ import requests
 from multiprocessing import Pool
 from tqdm import tqdm
 
-from constants import BASE_URL, COLUMNS_PLAYERS, COLUMN_TYPES
+# data imports
+from sqlalchemy import create_engine
+
+from constants import BASE_URL, COLUMNS_PLAYERS, COLUMN_TYPES, COLUMNS_PRICES
 
 
 def fetch_player_soup(player_id):
@@ -31,8 +34,8 @@ def fetch_player_soup(player_id):
     Returns:
         - soup: request
     """
-
-    resp = requests.get(BASE_URL + '/20/player/' + str(player_id))
+    url = f'{BASE_URL}/20/player/{str(player_id)}'
+    resp = requests.get(url)
     soup = BeautifulSoup(resp.text, features='lxml')
 
     if 'does not have permission' in soup.text:
@@ -41,7 +44,7 @@ def fetch_player_soup(player_id):
         os.system('say "Please reconnect."')
         proc = input('Proceed?')
         if proc == 'y':
-            soup = fetch_soup(player_id)
+            soup = fetch_player_soup(player_id)
 
     return soup
 
@@ -54,8 +57,11 @@ def fetch_price_soup(rid):
     Returns:
         - soup: requested soup
     """
-    url = BASE_URL + '20/playerGraph?type=daily_graph&year=20&player=' + str(rid)
-    resp = requests.get(url)
+    url = f'{BASE_URL}/20/playerGraph?type=daily_graph&year=20&player={str(rid)}'
+    try: 
+        resp = requests.get(url)
+    except:
+        print(f'Unable to reach {url}')
     soup = BeautifulSoup(resp.text, features='lxml')
 
     if 'does not have permission' in soup.text:
@@ -143,9 +149,15 @@ def fetch_player(player_id, game='20'):
 
     # PGP
     player_stats = soup.findAll('div', {'class': 'ps4-pgp-data'})
-    data.append(player_stats[-1].text.split()[-1])
-    data.append(player_stats[-2].text.split()[-1])
-    data.append(player_stats[-3].text.split()[-1])
+    num_games = player_stats[-1].text.split()[-1]
+    avg_goals = player_stats[-2].text.split()[-1]
+    avg_assts = player_stats[-3].text.split()[-1]
+    if num_games == '-': num_games = np.nan
+    if avg_goals == '-': avg_goals = np.nan
+    if avg_assts == '-': avg_assts = np.nan
+    data.append(num_games)
+    data.append(avg_goals)
+    data.append(avg_assts)
 
     # some are missing international reputation
     try:
@@ -240,7 +252,7 @@ def fetch_df_players(engine, num_processes=10):
             FROM players
             WHERE game='FIFA20'
                 """
-        current_pid = engine.execute(query)[0]
+        current_pid = engine.execute(query).fetchone()[0]
 
     except:
         current_pid = 0
@@ -275,17 +287,18 @@ def fetch_df_prices(engine, num_processes=10):
 
     query = """
         SELECT
-            player_key, 
-            resource_id
+            player_key
         FROM players
-        WHERE game = 'FIFA20'
+        WHERE player_key LIKE '%_20'
             """
 
     df_keys = pd.read_sql_query(query, engine)
+    df_keys['resource_id'] = df_keys.player_key\
+        .apply(lambda x: x.split('_')[0]).astype(int)
 
     rids = df_keys.resource_id.values
 
-    # number of players to collect
+    # Number of players to collect
     total_rids = len(rids)
     
     with Pool(num_processes) as p:
@@ -296,8 +309,9 @@ def fetch_df_prices(engine, num_processes=10):
     prices = np.concatenate(prices)
 
     df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
+    df_prices['resource_id'] = df_prices.resource_id.astype(int)
     df_prices = df_prices.merge(df_keys, on='resource_id', how='inner')
-    df_prices = df_prices[['player_key', 'date', 'price']]
+    df_prices = df_prices[COLUMNS_PRICES]
 
     # Load the prices from the older games.
     query_old = """
@@ -306,19 +320,24 @@ def fetch_df_prices(engine, num_processes=10):
             date,
             price
         FROM prices
-        WHERE game != 'FIFA20'
+        WHERE player_key NOT LIKE '%_20'
                 """
     df_old_prices = pd.read_sql_query(query_old, engine)
     df_prices = df_old_prices.append(df_prices)
     df_prices.reset_index(drop=True, inplace=True)
 
+    # Fix the dtypes
+    df_prices['date'] = pd.to_datetime(df_prices.date)
+    df_prices['price'] = df_prices.price.astype(int)
+
     return df_prices
 
 
-def fetch_data(engine):
+def fetch_data():
     """
     Create/update/load the players dataframe and create/update/load the prices dataframe.
     """
+    engine = create_engine('sqlite:///data/fifa.db', echo=False)
 
     print('Fetching players...')
     df_players = fetch_df_players(engine)

@@ -30,11 +30,11 @@ def load_arrays():
     """
     Load the processed arrays
     """
-    array_files = [x for x in os.listdir('data/') if '.npz' in x]
-    latest_file = np.sort(array_files)[-1]
+
+    array_files = [f'data/{x}' for x in os.listdir('data/') if '.npz' in x]
+    latest_file = max(array_files, key=os.path.getctime)
     print('Latest file found: {}'.format(latest_file))
-    latest_file_path = os.path.join('data', latest_file)
-    latest_array = np.load(latest_file_path)
+    latest_array = np.load(latest_file)
 
     data = {}
     for d in latest_array.files:
