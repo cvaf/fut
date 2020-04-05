@@ -49,7 +49,7 @@ Following are a few example predictions. (Step X means the prediction was genera
 - [x] Set-up prediction architecture
 - [x] Set-up website
 - [x] Incorporate model evaluation and player reliability in the website
-- [ ] Switch to sqlite
+- [x] Switch to sqlite
 - [ ] Add logging
 - [ ] Fix model persistence
 - [ ] Tweak feature engineering

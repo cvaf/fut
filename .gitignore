@@ -4,6 +4,8 @@
 # model evaluation notebook
 pricey/model_evaluation.ipynb
 
+*.sublime-*
+
 # Folders
 data/
 models/checkpoints
