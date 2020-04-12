@@ -19,12 +19,13 @@ def load_latest():
     Load the latest model in our models directory
     """
 
-    all_models = os.listdir('models')
-    latest_model = np.sort([x for x in all_models if '_1.h5' in x])[-1]
-    model_file = os.path.join('models', latest_model)
+    model_folder = 'models/'
+    all_models = [os.path.join(model_folder, x) \
+                  for x in os.listdir(model_folder) if '_1.h5' in x]
+    model_file = max(all_models, key=os.path.getctime)
     model = load_model(model_file)
-
-    model_name = latest_model[:-3]
+    model_name = model_file.split('/')[1][:-3]
+    
     return model, model_name
 
 
@@ -116,7 +117,7 @@ def evaluate_predictions(data):
 
 
     # Remove game from player id
-    df['pids'] = df.pids.apply(lambda x: x[:-2])
+    # df['pids'] = df.pids.apply(lambda x: x[:-2])
 
     # Create a weighted accuracy and evaluation rating
     df['eva'] = ((df.eva0 * 3) + (df.eva1 * 2) + (df.eva2)) / 6

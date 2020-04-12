@@ -143,22 +143,23 @@ PROMO_DATES = [
 
 # Training module
 DROP_COLS = [
-    'player_name', 'date', 'game', 'relative_price', 'player_key'
+    'player_name', 'date', 'relative_price', 'player_key'
 ]
 TEMP_COLS = [
     'promo', 'weekday', 'days', 'days_release', 'availability', 'price'
 ]
 ATTR_COLS = [
-    'overall', 'club', 'league', 'nationality', 'position', 'height', 'weight', 
-    'intl_rep', 'pace', 'pace_acceleration', 'pace_sprint_speed', 'dribbling', 
-    'drib_agility', 'drib_balance', 'drib_reactions', 'drib_ball_control', 
-    'drib_dribbling', 'drib_composure', 'shooting', 'shoot_positioning',
-    'shoot_finishing', 'shoot_shot_power', 'shoot_long_shots', 'shoot_volleys', 
-    'shoot_penalties', 'passing', 'pass_vision', 'pass_crossing', 
-    'pass_free_kick', 'pass_short', 'pass_long', 'pass_curve', 'defending', 
-    'def_interceptions', 'def_heading', 'def_marking', 'def_stand_tackle', 
-    'def_slid_tackle', 'physicality', 'phys_jumping', 'phys_stamina',
-    'phys_strength', 'phys_aggression', 'pref_foot', 'att_workrate',
-    'def_workrate', 'weak_foot', 'skill_moves', 'source'
+    'overall', 'game', 'club', 'league', 'nationality', 'position', 'height', 
+    'weight', 'intl_rep', 'pace', 'pace_acceleration', 'pace_sprint_speed',
+    'dribbling', 'drib_agility', 'drib_balance', 'drib_reactions', 
+    'drib_ball_control', 'drib_dribbling', 'drib_composure', 'shooting', 
+    'shoot_positioning', 'shoot_finishing', 'shoot_shot_power', 
+    'shoot_long_shots', 'shoot_volleys', 'shoot_penalties', 'passing', 
+    'pass_vision', 'pass_crossing', 'pass_free_kick', 'pass_short', 'pass_long', 
+    'pass_curve', 'defending', 'def_interceptions', 'def_heading', 
+    'def_marking', 'def_stand_tackle', 'def_slid_tackle', 'physicality', 
+    'phys_jumping', 'phys_stamina', 'phys_strength', 'phys_aggression', 
+    'pref_foot', 'att_workrate', 'def_workrate', 'weak_foot', 'skill_moves', 
+    'source'
 ]
 TARGET = 'price'
