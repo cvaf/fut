@@ -54,7 +54,7 @@ def model_setup(data):
     input_temp = Input(shape=train_temp[0].shape)
 
     # Temporal path
-    X_temp1 = GRU(512, activation='relu', recurrent_activation='relu',
+    X_temp1 = GRU(256, activation='relu', recurrent_activation='relu',
                   dropout=0.1, recurrent_dropout=0.1,
                   return_sequences=True)(input_temp)
     X_temp2 = GRU(256, activation='relu', recurrent_activation='relu',
@@ -70,11 +70,10 @@ def model_setup(data):
     X_attr1 = Dense(128, activation='relu')(input_attr)
     X_attr2 = Dense(128, activation='relu')(X_attr1)
     X_attr3 = Dense(128, activation='relu')(X_attr2)
-    X_attr4 = Dense(128, activation='relu')(X_attr3)
 
 
     # Merged path
-    X = Concatenate(axis=1)([X_attr4, X_temp3])
+    X = Concatenate(axis=1)([X_attr3, X_temp3])
     X = Dense(256, activation='relu')(X)
     X = Dense(256, activation='relu')(X)
     X = Dense(128, activation='relu')(X)

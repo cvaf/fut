@@ -22,7 +22,7 @@ There are two notebooks in the [modules](https://github.com/cvaf/fut/tree/master
 One can train the latest sophie model using:
 
 ```bash
-./app.py --help
+./demon.py --help
 
 Options:
   --update      Fetch new players and prices
