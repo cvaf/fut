@@ -1,13 +1,14 @@
 """
 Model evaluation script
 """
+import os, sys
+sys.path.append(os.getcwd())
+
 import pandas as pd 
 import numpy as np 
-import os
-import sys
 
 # Custom modules
-from train import load_arrays
+from fut.train import load_arrays
 
 # Model related imports
 from tensorflow.keras.models import load_model

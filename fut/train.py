@@ -2,16 +2,15 @@
 Train/retrain sophie
 """
 
-import os
-import sys
+import os, sys
+sys.path.append(os.getcwd())
+
 import logging
 from datetime import datetime, timedelta
 
-sys.path.append('modules')
-
 # Custom modules
-from constants import NUM_OBS, NUM_STEPS
-from config import CHECKPOINT_DICT
+from fut.constants import NUM_OBS, NUM_STEPS
+from fut.config import CHECKPOINT_DICT
 
 # processing & model selection
 import numpy as np

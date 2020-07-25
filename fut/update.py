@@ -3,11 +3,9 @@ Module containing functions for updating the player
 and prices dataframes
 """
 
-import os
-import sys
+import os, sys
+sys.path.append(os.getcwd())
 import logging
-
-sys.path.append('modules')
 
 import pandas as pd
 import numpy as np
@@ -24,7 +22,7 @@ from tqdm import tqdm
 # data imports
 from sqlalchemy import create_engine
 
-from constants import BASE_URL, COLUMNS_PLAYERS, COLUMN_TYPES, COLUMNS_PRICES
+from fut.constants import constants
 
 
 def fetch_player_soup(player_id):
@@ -35,7 +33,7 @@ def fetch_player_soup(player_id):
   Returns:
     - soup: request
   """
-  url = f'{BASE_URL}/20/player/{str(player_id)}'
+  url = f'{constants.base_url}/20/player/{str(player_id)}'
   resp = requests.get(url)
   soup = BeautifulSoup(resp.text, features='lxml')
 
@@ -57,7 +55,8 @@ def fetch_price_soup(rid):
   Returns:
     - soup: requested soup
   """
-  url = f'{BASE_URL}/20/playerGraph?type=daily_graph&year=20&player={str(rid)}'
+  url = f'{constants.base_url}/20/' +\
+        'playerGraph?type=daily_graph&year=20&player={str(rid)}'
   try: 
     resp = requests.get(url)
   except:
@@ -265,7 +264,7 @@ def fetch_df_players(engine, num_processes=10):
   with Pool(num_processes) as p:
     players_data = list(tqdm(p.imap(fetch_player, pids), total=total_pids))
 
-  df = pd.DataFrame(data=players_data, columns=COLUMNS_PLAYERS)
+  df = pd.DataFrame(data=players_data, columns=constants.columns['players'])
 
   df = df[df.phys_aggression.notnull()].reset_index(drop=True)
   df.sort_values(by='player_id', ascending=True, inplace=True)
@@ -313,7 +312,7 @@ def fetch_df_prices(engine, num_processes=10):
   df_prices = pd.DataFrame(prices, columns=['resource_id', 'date', 'price'])
   df_prices['resource_id'] = df_prices.resource_id.astype(int)
   df_prices = df_prices.merge(df_keys, on='resource_id', how='inner')
-  df_prices = df_prices[COLUMNS_PRICES]
+  df_prices = df_prices[constants.columns['prices']]
 
   # Load the prices from the older games.
   query_old = """
@@ -337,15 +336,17 @@ def fetch_df_prices(engine, num_processes=10):
 
 def fetch_data():
   """
-  Create/update/load the players dataframe and create/update/load the prices dataframe.
+  Create/update/load the players df and create/update/load the prices df.
   """
+  logging.info('Starting data fetch.')
+
   engine = create_engine('sqlite:///data/fifa.db', echo=False)
 
   logging.info('Fetching player data.')
   df_players = fetch_df_players(engine)
   try:
-    df_players.to_sql('players', engine, index=False, dtype=COLUMN_TYPES, 
-      if_exists='append')
+    df_players.to_sql('players', engine, index=False, 
+      dtype=constants.column_types, if_exists='append')
   except:
     logging.debug('Saving locally.')
     df_players.to_pickle('data/fifa20_newplayers.pkl', protocol=4)
@@ -354,8 +355,8 @@ def fetch_data():
   logging.info('Fetching price data.')
   df_prices = fetch_df_prices(engine)
   try: 
-    df_prices.to_sql('prices', engine, index=False, dtype=COLUMN_TYPES,
-      if_exists='replace')
+    df_prices.to_sql('prices', engine, index=False, 
+      dtype=constants.column_types, if_exists='replace')
   except:
     logging.debug('Saving locally.')
     df_prices.to_pickle('data/fifa20_newprices.pkl', protocol=4)

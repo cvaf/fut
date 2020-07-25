@@ -1,21 +1,18 @@
 """
 Preprocessing script that prepares the raw data for modeling
 """
-import os 
-import sys
-import logging
+import os, sys
+sys.path.append(os.getcwd())
 
+import logging
 import pandas as pd
 import numpy as np
-
-sys.path.append('modules')
 
 # other
 from datetime import datetime, timedelta
 
 # custom modules
-from constants import PROMO_DATES, TOP_LEAGUES, TOP_CLUBS, TOP_NATIONS, \
-    TEMP_COLS, ATTR_COLS, NUM_OBS, NUM_STEPS
+from fut.constants import constants
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -48,7 +45,7 @@ def promo_assignment(ds):
   """
   date = pd.to_datetime(ds)
   promo = 0
-  for p in PROMO_DATES:
+  for p in constants.promo_dates:
       if (p[0] <= date) & (p[1] >= date):
           promo = 1
           break
@@ -56,29 +53,22 @@ def promo_assignment(ds):
 
 
 
-def processing(df):
+def preprocess(df):
   """
   Run the concatenated dataframe through the preprocessing pipeline
   """
 
-  # Number of days between observation date and player added date
   df['days'] = (df.date - df.added_date).dt.days
-
-  # Observation weekday
   df['weekday'] = df.date.dt.weekday
-
-  # Encode the following variables: league, club and nationality
-  df['league'] = np.where(df.league.isin(TOP_LEAGUES), 
+  df['league'] = np.where(df.league.isin(constants.top['leagues']), 
                           df.league,
                           'other')
-  df['club'] = np.where(df.club.isin(TOP_CLUBS), 
+  df['club'] = np.where(df.club.isin(constants.top['clubs']), 
                         df.club,
                         'other')
-  df['nationality'] = np.where(df.nationality.isin(TOP_NATIONS), 
+  df['nationality'] = np.where(df.nationality.isin(constants.top['nations']), 
                                df.nationality, 
                                'other')
-
-  # Note if there was an active promotion at observation date
   df['promo'] = df['date'].apply(promo_assignment)
 
   # Source: whether the card was obtainable through packs, sbc or objectives
@@ -88,7 +78,6 @@ def processing(df):
   df['source'] = np.where(df.resource_id.isin(resources), 'packs', 'other')
   df = df[df.source=='packs']
 
-  # Days from release
   FIFA18_release = df[df.game=='FIFA18'].date.min()
   FIFA19_release = df[df.game=='FIFA19'].date.min()
   FIFA20_release = df[df.game=='FIFA20'].date.min()
@@ -100,7 +89,6 @@ def processing(df):
                                 (df.date - FIFA18_release).dt.days,
                                 df.days_release)
   df['days_release'] = df.days_release / 365    # scale it between 0 and 1
-
 
   # Relative price: how the price changed to the previous day
   df.sort_values(by=['game', 'resource_id', 'date'], 
@@ -151,8 +139,9 @@ def train_valid_split(df):
 
 def temporal_transformation(df, train=True):
 
-  df_temp = df.groupby(['player_key', 'date'])[TEMP_COLS].first().reset_index(1)
-  temp_num = ['weekday', 'days']
+  df_temp = df.groupby(['player_key', 'date'])\
+    [constants.columns['temp']].first().reset_index(1)
+  temp_num = ['weekday', 'days', 'days_release']
 
   # Load transformers
   if train:
@@ -175,7 +164,7 @@ def temporal_transformation(df, train=True):
 
 def attribute_tranformation(df, train=True):
 
-  df_attr = df.groupby('player_key')[ATTR_COLS].first()
+  df_attr = df.groupby('player_key')[constants.columns['attr']].first()
 
   attr_cat = ['game', 'club', 'league', 'nationality', 'pref_foot', 
               'att_workrate', 'def_workrate', 'position', 'source', 
@@ -209,10 +198,16 @@ def format(df, train=True):
 
   pids = all_temp.index.unique().values
 
-  pids_data = []
-  targ_data = []
-  temp_data = []
-  attr_data = []
+  data = {
+    'pids': [],
+    'targ': [],
+    'temp': [],
+    'attr': []
+  }
+  data['pids'] = []
+  data['targ'] = []
+  data['temp'] = []
+  data['attr'] = []
 
   for pid in pids:
 
@@ -221,34 +216,36 @@ def format(df, train=True):
     temporal_d = all_temp[all_temp.index==pid].values
 
     total_obs = temporal_d.shape[0]
-    window_size = NUM_OBS + NUM_STEPS
+    window_size = constants.num_obs + constants.num_steps
 
     if window_size > total_obs:
       continue
 
     for i in range(total_obs - window_size):
 
-      attr = np.append(attributes, temporal_d[i+NUM_OBS-1][-1])
-      temp = temporal_d[i:i+NUM_OBS][:, 1:]
-      targ = temporal_d[i+NUM_OBS:i+NUM_OBS+NUM_STEPS][:, -1]
-      targ_data.append(targ)
-      temp_data.append(temp)
-      attr_data.append(attr)
-      pids_data.append(pid)
-
-  pids_array = np.asarray(pids_data)
-  targ_array = np.asarray(targ_data).astype(np.float64)
-  temp_array = np.asarray(temp_data).astype(np.float64)
-  attr_array = np.asarray(attr_data)
+      attr = np.append(attributes, temporal_d[i+constants.num_obs-1][-1])
+      temp = temporal_d[i:i+constants.num_obs][:, 1:]
+      targ = temporal_d[
+        i+constants.num_obs:i+constants.num_obs+constants.num_steps][:, -1]
+      data['targ'].append(targ)
+      data['temp'].append(temp)
+      data['attr'].append(attr)
+      data['pids'].append(pid)
 
 
-  assert pids_array.shape[0] == temp_array.shape[0] \
-      == targ_array.shape[0] == attr_array.shape[0]
+  data['pids'] = np.asarray(data['pids'])
+  data['targ'] = np.asarray(data['targ']).astype(np.float64)
+  data['temp'] = np.asarray(data['temp']).astype(np.float64)
+  data['attr'] = np.asarray(data['attr'])
 
-  return pids_array, targ_array, temp_array, attr_array
+
+  assert data['pids'].shape[0] == data['temp'].shape[0] \
+      == data['targ'].shape[0] == data['attr'].shape[0]
+
+  return data
 
 
-def run():
+def process():
   """
   Load the data, process it and return the correct data format
   """
@@ -257,30 +254,36 @@ def run():
   df = load_data()
 
   logging.info('Processing data.')
-  df = processing(df)
+  df = preprocess(df)
 
   logging.debug('Creating validation split.')
   df_train, df_valid = train_valid_split(df)
 
   logging.info('Formatting data.')
-  total_pids, total_targ, total_temp, total_attr = format(df)
-  train_pids, train_targ, train_temp, train_attr = format(df_train, train=False)
-  valid_pids, valid_targ, valid_temp, valid_attr = format(df_valid, train=False)
-  logging.debug(f'Total players in train set: {len(total_pids)}')
-  logging.debug(f'Total players in valid set: {len(valid_pids)}')
+  data_total = format(df)
+  data_train = format(df_train, train=False)
+  data_valid = format(df_valid, train=False)
+  logging.debug(f'Total players in train set: {len(data_total['pids'])}')
+  logging.debug(f'Total players in valid set: {len(data_valid['pids'])}')
   
 
   datestamp = datetime.now().strftime('%Y%m%d')
   file_name = f'data/{datestamp}.npz'
   np.savez(file_name, 
-           total_pids=total_pids, total_targ=total_targ, 
-           total_temp=total_temp, total_attr=total_attr,
-           train_pids=train_pids, train_targ=train_targ, 
-           train_temp=train_temp, train_attr=train_attr, 
-           valid_pids=valid_pids, valid_targ=valid_targ,
-           valid_temp=valid_temp, valid_attr=valid_attr)
+           total_pids=data_total['pids'], 
+           total_targ=data_total['targ'], 
+           total_temp=data_total['temp'], 
+           total_attr=data_total['attr'],
+           train_pids=data_train['pids'], 
+           train_targ=data_train['targ'], 
+           train_temp=data_train['temp'], 
+           train_attr=data_train['attr'], 
+           valid_pids=data_valid['pids'], 
+           valid_targ=data_valid['targ'],
+           valid_temp=data_valid['temp'], 
+           valid_attr=data_valid['attr'])
   logging.info(f'Saved data in: {file_name}')
 
 
 if __name__ == '__main__':
-    run()
+  process()

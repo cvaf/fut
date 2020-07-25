@@ -2,23 +2,22 @@
 Module containing functions for fetching a player's attributes and 
 prices required to generate a prediction
 """
+import os, sys
+sys.path.append(os.getcwd())
 
 import pandas as pd
 import numpy as np
 
 # other
-import os
-import sys
 from datetime import datetime
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
-sys.path.append('modules')
 
 # custom modules
-from preprocessing import load_data, processing
-from constants import NUM_OBS, NUM_STEPS
+from fut.preprocessing import load_data, processing
+from fut.constants import constants
 
 # modeling
 from tensorflow.keras.models import load_model
@@ -58,7 +57,7 @@ def attribute_transformation(df_attr, transformer=attr_ct):
 	return attributes
 
 
-def data_format(temporal, attributes, num_obs=NUM_OBS):
+def data_format(temporal, attributes, num_obs=constants.num_obs):
 	"""
 	Changing the data format for modeling
 	"""
