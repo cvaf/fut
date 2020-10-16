@@ -10,14 +10,14 @@ from fut.utils import setup_logger
 
 @click.command()
 @click.option(
-    "--update", is_flag=True, help="Download new player data and refresh prices")
-@click.option(
-    "--game", default=21, help="Game to fetch data for. One of (19, 20, 21)")
+    "--update", is_flag=True, help="Download new player data and refresh prices"
+)
+@click.option("--game", default=21, help="Game to fetch data for. One of (19, 20, 21)")
 @click.option("--log", default="info", help="Logging verbosity level.")
 def run(update, game, log):
 
     if game not in {19, 20, 21}:
-        raise ValueError(f'Invalid game argument: {game}')
+        raise ValueError(f"Invalid game argument: {game}")
 
     setup_logger(log)
 
@@ -26,7 +26,7 @@ def run(update, game, log):
 
     if update:
 
-        if f'scraper{game}.pkl' in os.listdir('data'):
+        if f"scraper{game}.pkl" in os.listdir("data"):
             s = Scraper.load(game)
         else:
             s = Scraper(game)
@@ -36,6 +36,7 @@ def run(update, game, log):
 
         s.update_prices()
         s.save()
+
 
 if __name__ == "__main__":
     run()
