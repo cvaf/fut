@@ -10,7 +10,7 @@ Scraping player attributes and prices:
   --help          Show this message and exit.
 ```
 
-Currently in the process of refactoring the previous scraper + model. 
+Currently in the process of refactoring the previous scraper + model.
 
 ###  TO-DO:
 
