@@ -1,9 +1,8 @@
-from sqlalchemy import create_engine
+import os
 import logging
+import time
+import subprocess
 from datetime import datetime
-
-con = create_engine("sqlite:///data/fifa.db", echo=False)
-
 
 def setup_logger(log) -> None:
     logging.basicConfig(
@@ -29,3 +28,38 @@ def years_since(date: str) -> int:
     """Number of years between argument and current date"""
     delta = datetime.now() - datetime.strptime(date, "%d-%m-%Y")
     return int(delta.days / 365)
+
+
+class NordVPN:
+
+    def __init__(self):
+        return
+
+    @staticmethod
+    def disconnect() -> int:
+        return os.system("nordvpn d")
+
+    @staticmethod
+    def connect() -> int:
+        return os.system("nordvpn connect us")
+
+    @staticmethod
+    def reconnect() -> int:
+        a = os.system("nordvpn d")
+        b = os.system("nordvpn connect us")
+        return a*b
+
+    @staticmethod
+    def status() -> tuple:
+        vpn_status = str(subprocess.check_output(['nordvpn', 'status']))
+        if "Disconnected" in vpn_status:
+            return (False, 0)
+        else:
+            vpn_status = vpn_status.split('Uptime:')[-1]
+            time_active = vpn_status.strip(r"\'\n seconds")
+            if "minutes" in time_active:
+                mins, secs = time_active.split(" minutes ")
+            else:
+                mins = 0
+                secs = time_active
+            return (True, (int(mins) * 60) + int(secs))

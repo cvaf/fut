@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from multiprocessing import Pool
 from tqdm import tqdm
 
-from .utils import parse_html_table, years_since
+from .utils import parse_html_table, years_since, NordVPN
 from .constants import base_url
 
 
@@ -95,6 +95,7 @@ class Scraper:
                 tqdm(p.imap(update_prices, self.players), total=len(self.players))
             )
 
+        logging.info('Done updating.')
         self.players = updated_players
 
 
@@ -138,10 +139,17 @@ class Player:
         soup = BeautifulSoup(resp.text, features="lxml")
 
         if "does not have permission" in soup.text:
-            logging.debug("Access interrupted.")
-            proceed = input("Proceed?")
-            if proceed:
-                soup = self.download_soup(soup_type)
+            logging.info("Access interrupted.")
+
+            active, time_active = NordVPN.status()
+            if active and time_active <= 300:
+                logging.debug('Sleeping worker.')
+                time.sleep(10)
+            else:
+                logging.debug('Reconnecting VPN.')
+                NordVPN.reconnect()
+
+            soup, resp = self._download_soup(soup_type)
 
         return soup, resp
 
