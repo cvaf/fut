@@ -95,7 +95,7 @@ class Scraper:
                 tqdm(p.imap(update_prices, self.players), total=len(self.players))
             )
 
-        logging.info('Done updating.')
+        logging.info("Done updating.")
         self.players = updated_players
 
 
@@ -143,10 +143,10 @@ class Player:
 
             active, time_active = NordVPN.status()
             if active and time_active <= 300:
-                logging.debug('Sleeping worker.')
+                logging.debug("Sleeping worker.")
                 time.sleep(10)
             else:
-                logging.debug('Reconnecting VPN.')
+                logging.debug("Reconnecting VPN.")
                 NordVPN.reconnect()
 
             soup, resp = self._download_soup(soup_type)

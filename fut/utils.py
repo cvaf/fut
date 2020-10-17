@@ -1,8 +1,8 @@
 import os
 import logging
-import time
 import subprocess
 from datetime import datetime
+
 
 def setup_logger(log) -> None:
     logging.basicConfig(
@@ -31,7 +31,6 @@ def years_since(date: str) -> int:
 
 
 class NordVPN:
-
     def __init__(self):
         return
 
@@ -47,15 +46,15 @@ class NordVPN:
     def reconnect() -> int:
         a = os.system("nordvpn d")
         b = os.system("nordvpn connect us")
-        return a*b
+        return a * b
 
     @staticmethod
     def status() -> tuple:
-        vpn_status = str(subprocess.check_output(['nordvpn', 'status']))
+        vpn_status = str(subprocess.check_output(["nordvpn", "status"]))
         if "Disconnected" in vpn_status:
             return (False, 0)
         else:
-            vpn_status = vpn_status.split('Uptime:')[-1]
+            vpn_status = vpn_status.split("Uptime:")[-1]
             time_active = vpn_status.strip(r"\'\n seconds")
             if "minutes" in time_active:
                 mins, secs = time_active.split(" minutes ")
