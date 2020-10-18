@@ -35,8 +35,15 @@ class Scraper:
         self.game = game
         self.players = []
 
-    def __str__(self):
+    def __str__(self) -> int:
         return self.game
+
+    def lookup(self, identifier):
+        player = [p for p in self.players if p == identifier]
+        if player:
+            return player[0]
+        else:
+            return None
 
     def save(self) -> None:
         """
@@ -55,10 +62,14 @@ class Scraper:
         """
         Find the latest available player ID on futbin
         """
-        # TODO: Adjust this to accommodate other fifa versions
-        resp = requests.get("https://www.futbin.com/latest")
-        soup = BeautifulSoup(resp.text, "lxml")
-        pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
+        if self.game == 20:
+            pid = 50966
+        elif self.game == 19:
+            pid = 21437
+        else:
+            resp = requests.get("https://www.futbin.com/latest")
+            soup = BeautifulSoup(resp.text, "lxml")
+            pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
         return int(pid)
 
     def update_players(self, num_processes=8) -> None:
@@ -114,8 +125,17 @@ class Player:
         self.rid = rid
         self.name = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name if self.name else str(self.pid)
+
+    def __eq__(self, other):
+        if type(other) == int:
+            identifier = self.pid
+        elif type(other) == str:
+            identifier = self.name
+        else:
+            identifier = self.name if self.name else str(self.pid)
+        return identifier == other
 
     def _download_soup(self, soup_type) -> BeautifulSoup:
         """
@@ -134,7 +154,6 @@ class Player:
         else:
             raise ValueError("soup_type must be attributes or prices.")
 
-        # TODO: Add exception handling here
         resp = requests.get(url)
         soup = BeautifulSoup(resp.text, features="lxml")
 
@@ -165,29 +184,7 @@ class Player:
             return
 
         # Player information
-        info_table = soup.find("table", {"class": "table table-info"})
-        info = parse_html_table(info_table)
-        if info[6] in {"Right", "Left"}:
-            return
-        self.name = info[0]
-        self.club = info[1]
-        self.nation = info[2]
-        self.league = info[3]
-        self.skill_moves = int(info[4])
-        self.weak_foot = int(info[5])
-        self.reputation = int(info[6])
-        self.foot = info[7]
-        self.height = int(info[8].split("cm")[0])
-        self.weight = int(info[9])
-        self.revision = info[10]
-        self.defensive_wr = info[11]
-        self.attacking_wr = info[12]
-        self.added_date = datetime.strptime(info[13], "%Y-%m-%d")
-        self.origin = info[14]
-        if "years" in info[17]:
-            self.age = int(info[17].split(" ")[0])
-        else:
-            self.age = years_since(info[17])
+        self._parse_information(soup)
         self.rating = int(soup.find("div", {"class": "pcdisplay-rat"}).text)
         self.position = soup.find("div", {"id": "page-info"})["data-position"]
 
@@ -217,7 +214,44 @@ class Player:
                 (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
             )
 
-    def _parse_attributes(self, stats, position) -> None:
+    def _parse_information(self, soup: BeautifulSoup) -> None:
+        """
+        Extract the player's information.
+        There's some oddities depending on the game - for example FIFA 19 data was
+        missing international reputation for all icons (bar moments) and there was
+        no body type data for any players.
+
+        :soup: BeautifulSoup of the player's futbin page.
+        """
+        info_table = soup.find("table", {"class": "table table-info"})
+        info = parse_html_table(info_table)
+
+        self.name = info[0]
+        self.club = info[1]
+        self.nation = info[2]
+        self.league = info[3]
+        self.skill_moves = int(info[4])
+        self.weak_foot = int(info[5])
+
+        # The reputation field
+        shift = 0
+        if info[6] in {"Right", "Left"}:
+            shift = 1
+        self.reputation = int(info[6]) if shift == 0 else 4
+        self.foot = info[7 - shift]
+        self.height = int(info[8 - shift].split("cm")[0])
+        self.weight = int(info[9 - shift])
+        self.revision = info[10 - shift]
+        self.defensive_wr = info[11 - shift]
+        self.attacking_wr = info[12 - shift]
+        self.added_date = datetime.strptime(info[13 - shift], "%Y-%m-%d")
+        self.origin = info[14 - shift]
+        if "years" in info[-1]:
+            self.age = int(info[-1].split(" ")[0])
+        else:
+            self.age = years_since(info[-1])
+
+    def _parse_attributes(self, stats: dict, position: str) -> None:
         """
         Extract the individual player attributes
 

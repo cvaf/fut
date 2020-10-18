@@ -58,6 +58,8 @@ class NordVPN:
             time_active = vpn_status.strip(r"\'\n seconds")
             if "minutes" in time_active:
                 mins, secs = time_active.split(" minutes ")
+            elif "minute" in time_active:
+                mins, secs = time_active.split(" minute ")
             else:
                 mins = 0
                 secs = time_active
