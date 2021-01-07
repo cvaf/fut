@@ -1,6 +1,6 @@
 beautifulsoup4==4.9.3
 click==7.1.2
-lxml==4.5.2
+lxml==4.6.2
 numpy==1.18.5
 pandas==1.1.1
 pre-commit==2.7.1
