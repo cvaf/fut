@@ -5,6 +5,8 @@
 pricey/model_evaluation.ipynb
 
 *.sublime*
+*.code-workspace
+.vscode
 
 old
 logs/
@@ -22,3 +24,4 @@ __pycache__/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb

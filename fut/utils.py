@@ -1,6 +1,7 @@
-import os
 import logging
-import subprocess
+import random
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
 
 
@@ -14,13 +15,18 @@ def setup_logger(log) -> None:
     )
 
 
-def parse_html_table(table) -> list:
+def parse_html_table(table, concat=True) -> list:
     data = []
     rows = table.find_all("tr")
     for row in rows:
         cols = row.find_all("td")
         cols = [ele.text.strip() for ele in cols]
-        data.append("".join([ele for ele in cols if ele]))
+        if concat:
+            entries = "".join([ele for ele in cols if ele])
+        else:
+            entries = [ele for ele in cols if ele]
+
+        data.append(entries)
     return data
 
 
@@ -30,37 +36,32 @@ def years_since(date: str) -> int:
     return int(delta.days / 365)
 
 
-class NordVPN:
-    def __init__(self):
-        return
+class ProxyHandler:
+    URL = "https://www.us-proxy.org"
+    PROXY_TYPES = ["anonymous", "elite proxy"]
 
-    @staticmethod
-    def disconnect() -> int:
-        return os.system("nordvpn d")
+    def __init__(self) -> None:
+        self.proxies = []
+        self.blacklist_proxies = []
+        self._new_proxies()
 
-    @staticmethod
-    def connect() -> int:
-        return os.system("nordvpn connect us")
+    def _new_proxies(self) -> None:
+        resp = requests.get(self.URL)
+        soup = BeautifulSoup(resp.text, "lxml")
+        parsed_table = parse_html_table(soup.find("tbody"), concat=False)
+        proxies = [
+            proxy[0] + ":" + proxy[1]
+            for proxy in parsed_table
+            if proxy[2] == "US" and proxy[4] in self.PROXY_TYPES
+        ]
+        self.proxies = [proxy for proxy in proxies if proxy not in self.blacklist_proxies]
 
-    @staticmethod
-    def reconnect() -> int:
-        a = os.system("nordvpn d")
-        b = os.system("nordvpn connect us")
-        return a * b
+    def remove_proxy(self, proxy: str) -> None:
+        if proxy in self.proxies:
+            self.proxies.remove(proxy)
+        self.blacklist_proxies.append(proxy)
 
-    @staticmethod
-    def status() -> tuple:
-        vpn_status = str(subprocess.check_output(["nordvpn", "status"]))
-        if "Disconnected" in vpn_status:
-            return (False, 0)
-        else:
-            vpn_status = vpn_status.split("Uptime:")[-1]
-            time_active = vpn_status.strip(r"\'\n seconds")
-            if "minutes" in time_active:
-                mins, secs = time_active.split(" minutes ")
-            elif "minute" in time_active:
-                mins, secs = time_active.split(" minute ")
-            else:
-                mins = 0
-                secs = time_active
-            return (True, (int(mins) * 60) + int(secs))
+    def sample_proxy(self) -> str:
+        if not self.proxies:
+            self._new_proxies()
+        return random.choice(self.proxies)

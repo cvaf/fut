@@ -1,113 +1,16 @@
-import logging
-
-import json
-import pickle
 import time
+import json
+import logging
 from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
+from requests.exceptions import SSLError, ProxyError
 
-from multiprocessing import Pool
-from tqdm import tqdm
+from .utils import parse_html_table, years_since, ProxyHandler
+from .constants import BASE_URL
 
-from .utils import parse_html_table, years_since, NordVPN
-from .constants import base_url
-
-
-def update_player(player):
-    player.download()
-    return player
-
-
-def update_prices(player):
-    player.download_prices()
-    return player
-
-
-class Scraper:
-    def __init__(self, game: int) -> None:
-        """
-        Web scraper base class.
-
-        :game: fifa version
-        """
-        self.game = game
-        self.players = []
-
-    def __str__(self) -> int:
-        return self.game
-
-    def lookup(self, identifier):
-        player = [p for p in self.players if p == identifier]
-        if player:
-            return player[0]
-        else:
-            return None
-
-    def save(self) -> None:
-        """
-        Save a pickle of this instance at data/scraper{game}.pkl where
-        game is this instance's game version.
-        """
-        with open(f"data/scraper{self.game}.pkl", "wb") as f:
-            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
-
-    @staticmethod
-    def load(game):
-        with open(f"data/scraper{game}.pkl", "rb") as f:
-            return pickle.load(f)
-
-    def _latest_pid(self) -> int:
-        """
-        Find the latest available player ID on futbin
-        """
-        if self.game == 20:
-            pid = 50966
-        elif self.game == 19:
-            pid = 21437
-        else:
-            resp = requests.get("https://www.futbin.com/latest")
-            soup = BeautifulSoup(resp.text, "lxml")
-            pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
-        return int(pid)
-
-    def update_players(self, num_processes=8) -> None:
-        """
-        Updates the players array by fetching newly added players and their
-        attributes.
-
-        :num_processes: number of multiprocessing workers to use.
-        """
-
-        current_pid = max([player.pid for player in self.players]) if self.players else 0
-        latest_pid = self._latest_pid()
-
-        new_players = [
-            Player(pid, self.game) for pid in range(current_pid + 1, latest_pid + 1)
-        ]
-
-        with Pool(num_processes) as p:
-            new_players = list(
-                tqdm(p.imap(update_player, new_players), total=len(new_players))
-            )
-
-        self.players.extend(new_players)
-
-    def update_prices(self, num_processes=8) -> None:
-        """
-        Downloads the prices for all the players in the players array.
-
-        :num_processes: number of multiprocessing workers to use.
-        """
-
-        with Pool(num_processes) as p:
-            updated_players = list(
-                tqdm(p.imap(update_prices, self.players), total=len(self.players))
-            )
-
-        logging.info("Done updating.")
-        self.players = updated_players
+proxy_handler = ProxyHandler()
 
 
 class Player:
@@ -145,29 +48,27 @@ class Player:
         """
 
         if soup_type == "attributes":
-            url = f"{base_url}/{self.game}/player/{self.pid}"
+            url = f"{BASE_URL}/{self.game}/player/{self.pid}"
         elif soup_type == "prices":
             url = (
-                f"{base_url}/{self.game}/playerGraph?"
+                f"{BASE_URL}/{self.game}/playerGraph?"
                 f"type=daily_graph&year={self.game}&player={self.rid}"
             )
         else:
             raise ValueError("soup_type must be attributes or prices.")
 
-        resp = requests.get(url)
-        soup = BeautifulSoup(resp.text, features="lxml")
+        proxy = proxy_handler.sample_proxy()
+        try:
+            resp = requests.get(url, proxies={"http": proxy, "https": proxy})
+            soup = BeautifulSoup(resp.text, features="lxml")
+            error = False
+        except (SSLError, ProxyError):
+            error = True
 
-        if "does not have permission" in soup.text:
+        if error or "does not have permission" in soup.text:
             logging.info("Access interrupted.")
-
-            active, time_active = NordVPN.status()
-            if active and time_active <= 300:
-                logging.debug("Sleeping worker.")
-                time.sleep(10)
-            else:
-                logging.debug("Reconnecting VPN.")
-                NordVPN.reconnect()
-
+            proxy_handler.remove_proxy(proxy)
+            time.sleep(2)
             soup, resp = self._download_soup(soup_type)
 
         return soup, resp
@@ -176,15 +77,17 @@ class Player:
         """
         Download the player's information, attributes and statistics.
         """
-        try:
-            soup, resp = self._download_soup("attributes")
-            self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
-        except Exception as e:
-            logging.error(f"Failed downloading soup for {self.pid}; {str(e)}")
+        soup, resp = self._download_soup("attributes")
+
+        if "We're sorry" in soup.text:
             return
 
-        # Player information
-        self._parse_information(soup)
+        try:
+            self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
+            self._parse_information(soup)
+        except Exception as e:
+            logging.error(f"Failed parsing information for {self.pid}; {str(e)}")
+            return
         self.rating = int(soup.find("div", {"class": "pcdisplay-rat"}).text)
         self.position = soup.find("div", {"id": "page-info"})["data-position"]
 
@@ -197,7 +100,10 @@ class Player:
 
         # Attributes
         stats = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
-        self._parse_attributes(stats, self.position)
+        try:
+            self._parse_attributes(stats, self.position)
+        except Exception as e:
+            logging.error(f"Failed parsing attributes for {self.pid}; {str(e)}")
 
     def download_prices(self) -> None:
         """
@@ -326,8 +232,9 @@ class Player:
             self.reflexes = extract_stat(reflexes_stats, 0)
 
             speed_stats = stats["speed"]
-            self.acceleration = extract_stat(speed_stats, 1)
-            self.sprint_speed = extract_stat(speed_stats, 2)
+            speed = extract_stat(speed_stats, 0)
+            self.acceleration = speed
+            self.sprint_speed = speed
 
             positioning_stats = stats["gkpositioning"]
             self.positioning = extract_stat(positioning_stats, 0)

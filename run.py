@@ -4,7 +4,7 @@ import os
 import logging
 import click
 
-from fut.helpers import Scraper
+from fut.scraper import Scraper
 from fut.utils import setup_logger
 
 

@@ -1,11 +1,8 @@
 from datetime import datetime
-from sqlalchemy.types import String, Float, Integer, DateTime
 
-base_url = "https://www.futbin.com"
-num_obs = 7
-num_steps = 3
+BASE_URL = "https://www.futbin.com"
 
-columns = {
+COLUMNS = {
     "players": [
         "player_id",
         "game",
@@ -127,73 +124,7 @@ columns = {
     "target": "price",
 }
 
-column_types = {
-    "player_id": Integer(),
-    "game": String(),
-    "player_name": String(),
-    "overall": Integer(),
-    "quality": String(),
-    "resource_id": Integer(),
-    "player_key": String(),
-    "position": String(),
-    "num_games": Integer(),
-    "avg_goals": Float(),
-    "avg_assists": Float(),
-    "club": String(),
-    "league": String(),
-    "nationality": String(),
-    "skill_moves": Integer(),
-    "weak_foot": Integer(),
-    "pref_foot": String(),
-    "age": Integer(),
-    "height": Float(),
-    "weight": Float(),
-    "revision": String(),
-    "intl_rep": Integer(),
-    "def_workrate": String(),
-    "att_workrate": String(),
-    "added_date": DateTime(),
-    "origin": String(),
-    "pace": Integer(),
-    "pace_acceleration": Integer(),
-    "pace_sprint_speed": Integer(),
-    "shooting": Integer(),
-    "shoot_positioning": Integer(),
-    "shoot_finishing": Integer(),
-    "shoot_shot_power": Integer(),
-    "shoot_long_shots": Integer(),
-    "shoot_volleys": Integer(),
-    "shoot_penalties": Integer(),
-    "passing": Integer(),
-    "pass_vision": Integer(),
-    "pass_crossing": Integer(),
-    "pass_free_kick": Integer(),
-    "pass_short": Integer(),
-    "pass_long": Integer(),
-    "pass_curve": Integer(),
-    "dribbling": Integer(),
-    "drib_agility": Integer(),
-    "drib_balance": Integer(),
-    "drib_reactions": Integer(),
-    "drib_ball_control": Integer(),
-    "drib_dribbling": Integer(),
-    "drib_composure": Integer(),
-    "defending": Integer(),
-    "def_interceptions": Integer(),
-    "def_heading": Integer(),
-    "def_marking": Integer(),
-    "def_stand_tackle": Integer(),
-    "def_slid_tackle": Integer(),
-    "physicality": Integer(),
-    "phys_jumping": Integer(),
-    "phys_stamina": Integer(),
-    "phys_strength": Integer(),
-    "phys_aggression": Integer(),
-    "date": DateTime(),
-    "price": Float(),
-}
-
-top = {
+TOP = {
     "leagues": [
         "Premier League",
         "Serie A TIM",
@@ -233,7 +164,7 @@ top = {
     ],
 }
 
-promo_dates = [
+PROMO_DATES = [
     [datetime(2020, 4, 24), datetime.now()],  # TOTSSF
     [datetime(2020, 3, 27), datetime(2020, 4, 11)],  # fut bday
     [datetime(2020, 2, 21), datetime(2020, 3, 5)],  # Shapeshift
