@@ -1,16 +1,13 @@
 import time
 import json
-import logging
 from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
-from requests.exceptions import SSLError, ProxyError
+from requests.exceptions import ProxyError
 
-from .utils import parse_html_table, years_since, ProxyHandler
+from .utils import parse_html_table, years_since
 from .constants import BASE_URL
-
-proxy_handler = ProxyHandler()
 
 
 class Player:
@@ -27,6 +24,7 @@ class Player:
         self.pid = pid
         self.rid = rid
         self.name = None
+        self.updated = False
 
     def __str__(self) -> str:
         return self.name if self.name else str(self.pid)
@@ -40,7 +38,7 @@ class Player:
             identifier = self.name if self.name else str(self.pid)
         return identifier == other
 
-    def _download_soup(self, soup_type) -> BeautifulSoup:
+    def _download_soup(self, soup_type, proxy) -> BeautifulSoup:
         """
         Download the parsed soup for the player or their prices.
 
@@ -57,27 +55,19 @@ class Player:
         else:
             raise ValueError("soup_type must be attributes or prices.")
 
-        proxy = proxy_handler.sample_proxy()
-        try:
-            resp = requests.get(url, proxies={"http": proxy, "https": proxy})
-            soup = BeautifulSoup(resp.text, features="lxml")
-            error = False
-        except (SSLError, ProxyError):
-            error = True
-
-        if error or "does not have permission" in soup.text:
-            logging.info("Access interrupted.")
-            proxy_handler.remove_proxy(proxy)
+        resp = requests.get(url, proxies={"http": proxy, "https": proxy})
+        soup = BeautifulSoup(resp.text, features="lxml")
+        if "does not have permission" in soup.text:
             time.sleep(2)
-            soup, resp = self._download_soup(soup_type)
+            raise ProxyError
 
         return soup, resp
 
-    def download(self) -> None:
+    def download(self, proxy) -> None:
         """
         Download the player's information, attributes and statistics.
         """
-        soup, resp = self._download_soup("attributes")
+        soup, resp = self._download_soup("attributes", proxy)
 
         if "We're sorry" in soup.text:
             return
@@ -85,8 +75,7 @@ class Player:
         try:
             self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
             self._parse_information(soup)
-        except Exception as e:
-            logging.error(f"Failed parsing information for {self.pid}; {str(e)}")
+        except Exception:
             return
         self.rating = int(soup.find("div", {"class": "pcdisplay-rat"}).text)
         self.position = soup.find("div", {"id": "page-info"})["data-position"]
@@ -102,16 +91,16 @@ class Player:
         stats = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
         try:
             self._parse_attributes(stats, self.position)
-        except Exception as e:
-            logging.error(f"Failed parsing attributes for {self.pid}; {str(e)}")
+        except Exception:
+            return
 
-    def download_prices(self) -> None:
+    def download_prices(self, proxy) -> None:
         """
         Download the player's daily prices.
         """
 
         self.prices = []
-        soup, resp = self._download_soup("prices")
+        soup, resp = self._download_soup("prices", proxy)
         soup_dict = json.loads(soup.text)
         if "ps" not in soup_dict:
             return
@@ -119,6 +108,7 @@ class Player:
             self.prices.append(
                 (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
             )
+        self.updated = True
 
     def _parse_information(self, soup: BeautifulSoup) -> None:
         """

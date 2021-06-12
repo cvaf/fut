@@ -1,6 +1,12 @@
+import os
 from datetime import datetime
 
 BASE_URL = "https://www.futbin.com"
+PARENT_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
+DATA_FOLDER = os.path.join(PARENT_FOLDER, "data")
+LOGS_FOLDER = os.path.join(PARENT_FOLDER, "logs")
+os.makedirs(DATA_FOLDER, exist_ok=True)
+os.makedirs(LOGS_FOLDER, exist_ok=True)
 
 COLUMNS = {
     "players": [

@@ -1,24 +1,15 @@
+import os
+import ray
 import pickle
-import logging
 import requests
 from bs4 import BeautifulSoup
-
-from multiprocessing import Pool
-from tqdm import tqdm
+from requests.exceptions import SSLError, ProxyError
 
 from .player import Player
+from .constants import DATA_FOLDER
 
 
-def update_player(player):
-    player.download()
-    return player
-
-
-def update_prices(player):
-    player.download_prices()
-    return player
-
-
+@ray.remote
 class Scraper:
     def __init__(self, game: int) -> None:
         """
@@ -29,29 +20,36 @@ class Scraper:
         self.game = game
         self.players = []
 
-    def __str__(self) -> int:
-        return self.game
-
-    def lookup(self, identifier):
+    def lookup(self, identifier: int) -> Player:
         player = [p for p in self.players if p == identifier]
-        if player:
-            return player[0]
-        else:
-            return None
+        return player[0] if player else None
 
-    def save(self) -> None:
-        """
-        Save a pickle of this instance at data/scraper{game}.pkl where
-        game is this instance's game version.
-        """
-        logging.debug(f"Saving {self.game} scraper instance.")
-        with open(f"data/scraper{self.game}.pkl", "wb") as f:
-            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+    def update(self, storage, proxy_handler):
+        while not ray.get(storage.get_terminate_status.remote()):
+            pid = ray.get(storage.get_pending_pid.remote())
+            player = Player(pid, self.game)
+            proxy = ray.get(proxy_handler.get_proxy.remote())
 
-    @staticmethod
-    def load(game):
-        with open(f"data/scraper{game}.pkl", "rb") as f:
-            return pickle.load(f)
+            while not player.updated:
+                try:
+                    player.download(proxy)
+                    player.download_prices(proxy)
+                except (SSLError, ProxyError):
+                    proxy = ray.get(proxy_handler.refresh_proxy.remote(proxy))
+
+            storage.add_player.remote(player)
+
+
+@ray.remote
+class SharedStorage:
+    def __init__(self, game: int) -> None:
+        self.game = game
+        self.pending_pids = list(range(self._latest_pid()))
+        self.players = []
+        self.file_path = os.path.join(DATA_FOLDER, f"players{game}.pkl")
+        if os.path.isfile(self.file_path):
+            self._load()
+        self.terminate = False
 
     def _latest_pid(self) -> int:
         """
@@ -67,41 +65,29 @@ class Scraper:
             pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
         return int(pid)
 
-    def update_players(self, num_processes=12) -> None:
-        """
-        Updates the players array by fetching newly added players and their
-        attributes.
-
-        :num_processes: number of multiprocessing workers to use.
-        """
-
+    def _load(self) -> None:
+        with open(self.file_path, "rb") as f:
+            players = pickle.load(f)
+        self.players.extend(players)
         current_pid = max([player.pid for player in self.players]) if self.players else 0
-        latest_pid = self._latest_pid()
+        self.pending_pids = list(range(current_pid, max(self.pending_pids)))
 
-        new_players = [
-            Player(pid, self.game) for pid in range(current_pid + 1, latest_pid + 1)
-        ]
+    def save(self) -> None:
+        with open(self.file_path, "wb") as f:
+            pickle.dump(self.players, f, pickle.HIGHEST_PROTOCOL)
 
-        # break up the updates in increments
-        num_players = len(new_players)
-        with Pool(num_processes) as p:
-            updated_players = list(
-                tqdm(p.imap(update_player, new_players), total=num_players)
-            )
-        self.players.extend(updated_players)
-        self.save()
+    def get_pending_pid(self) -> int:
+        pid = self.pending_pids[0]
+        self.pending_pids.pop(0)
+        if not self.pending_pids:
+            self.terminate = True
+        return pid
 
-    def update_prices(self, num_processes=8) -> None:
-        """
-        Downloads the prices for all the players in the players array.
+    def get_pending(self) -> list:
+        return self.pending_pids
 
-        :num_processes: number of multiprocessing workers to use.
-        """
+    def get_terminate_status(self) -> bool:
+        return self.terminate
 
-        with Pool(num_processes) as p:
-            updated_players = list(
-                tqdm(p.imap(update_prices, self.players), total=len(self.players))
-            )
-
-        logging.info("Done updating.")
-        self.players = updated_players
+    def terminate(self) -> None:
+        self.terminate = True

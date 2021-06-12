@@ -1,18 +1,8 @@
-import logging
+import ray
 import random
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-
-
-def setup_logger(log) -> None:
-    logging.basicConfig(
-        filename=f"logs/{str(datetime.now().strftime('%Y%m%d_%H%M%S'))}.log",
-        filemode="w",
-        level=getattr(logging, log.upper()),
-        datefmt="%H:%M:%S",
-        format="%(asctime)s - %(levelname)s: %(message)s",
-    )
 
 
 def parse_html_table(table, concat=True) -> list:
@@ -36,6 +26,7 @@ def years_since(date: str) -> int:
     return int(delta.days / 365)
 
 
+@ray.remote
 class ProxyHandler:
     URL = "https://www.us-proxy.org"
     PROXY_TYPES = ["anonymous", "elite proxy"]
@@ -61,7 +52,11 @@ class ProxyHandler:
             self.proxies.remove(proxy)
         self.blacklist_proxies.append(proxy)
 
-    def sample_proxy(self) -> str:
+    def get_proxy(self) -> str:
         if not self.proxies:
             self._new_proxies()
         return random.choice(self.proxies)
+
+    def refresh_proxy(self, proxy: str) -> str:
+        self.remove_proxy(proxy)
+        return self.get_proxy()

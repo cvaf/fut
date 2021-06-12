@@ -1,41 +1,20 @@
-#!/usr/bin/python3.8
-
-import os
-import logging
 import click
-
-from fut.scraper import Scraper
-from fut.utils import setup_logger
+from fut import Client
 
 
 @click.command()
-@click.option(
-    "--update", is_flag=True, help="Download new player data and refresh prices"
-)
-@click.option("--game", default=21, help="Game to fetch data for. One of (19, 20, 21)")
-@click.option("--log", default="info", help="Logging verbosity level.")
-def run(update, game, log):
+@click.option("--game", default=21, help="game to fetch data for. One of (19, 20, 21)")
+@click.option("--num_workers", default=4, help="Number of workers to use in parallel.")
+def run(game: int, num_workers: int) -> None:
 
     if game not in {19, 20, 21}:
         raise ValueError(f"Invalid game argument: {game}")
+    elif num_workers < 4:
+        raise ValueError("Number of workers must be greater than 3")
 
-    setup_logger(log)
-
-    parameters = f"""U: {update}; G: {game}; L: {log};"""
-    logging.info(parameters)
-
-    if update:
-
-        if f"scraper{game}.pkl" in os.listdir("data"):
-            s = Scraper.load(game)
-        else:
-            s = Scraper(game)
-
-        s.update_players()
-        s.save()
-
-        s.update_prices()
-        s.save()
+    client = Client(game, num_workers)
+    client.run()
+    client.shutdown()
 
 
 if __name__ == "__main__":
