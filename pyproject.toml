@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "fut"
+version = "0.1.0"
+description = "FUT data scraper."
+authors = ["cvaf <costasvaf@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.7.1, <3.11"
+beautifulsoup4 = "^4.10.0"
+click = "^8.0.3"
+lxml = "^4.6.4"
+numpy = "^1.21.4"
+pandas = "^1.3.4"
+tqdm = "^4.62.3"
+
+[tool.poetry.dev-dependencies]
+pre-commit = "^2.15.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

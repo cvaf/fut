@@ -25,3 +25,5 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
+
+poetry.lock
