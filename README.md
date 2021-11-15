@@ -1,4 +1,4 @@
-# FUT 21
+# FUT
 
 Scraping player attributes and prices:
 
@@ -10,11 +10,10 @@ Scraping player attributes and prices:
   --help          Show this message and exit.
 ```
 
-Currently in the process of refactoring the previous scraper + model.
 
 ###  TO-DO:
 
-- [x] Add hooks.
-- [x] Refactor scraping.
-- [ ] Refactor training.
-- [ ] Tune.
+- [x] Switch to poetry.
+- [x] Add proxy option.
+- [ ] Add tests.
+- [ ] Add data extraction method.

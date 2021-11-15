@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from requests.exceptions import SSLError, ProxyError
 
 from .player import Player
-from .constants import DATA_FOLDER
+from .constants import DATA_FOLDER, MAX_PIDS
 
 
 @ray.remote
@@ -55,14 +55,14 @@ class SharedStorage:
         """
         Find the latest available player ID on futbin
         """
-        if self.game == 20:
-            pid = 50966
-        elif self.game == 19:
-            pid = 21437
-        else:
+        if self.game == 22:
             resp = requests.get("https://www.futbin.com/latest")
             soup = BeautifulSoup(resp.text, "lxml")
             pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
+        elif self.game in MAX_PIDS.keys():
+            pid = MAX_PIDS.get(self.game)
+        else:
+            raise ValueError(f"Game value: {self.game} is not supported.")
         return int(pid)
 
     def _load(self) -> None:

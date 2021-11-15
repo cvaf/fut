@@ -1,13 +1,14 @@
 import time
 import json
+import numpy as np
 from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
 from requests.exceptions import ProxyError
+from typing import Union
 
-from .utils import parse_html_table, years_since
-from .constants import BASE_URL
+from .utils import parse_html_table, years_since, create_url
 
 
 class Player:
@@ -24,7 +25,8 @@ class Player:
         self.pid = pid
         self.rid = rid
         self.name = None
-        self.updated = False
+        self.url = create_url(game, pid, prices=False)
+        self.url_prices = create_url(game, rid, True) if rid else None
 
     def __str__(self) -> str:
         return self.name if self.name else str(self.pid)
@@ -38,193 +40,117 @@ class Player:
             identifier = self.name if self.name else str(self.pid)
         return identifier == other
 
-    def _download_soup(self, soup_type, proxy) -> BeautifulSoup:
+    def _download_soup(
+        self, soup_type: str, proxy: Union[str, None] = None
+    ) -> BeautifulSoup:
         """
         Download the parsed soup for the player or their prices.
 
         :soup_type: one of ('attributes', 'prices')
         """
+        proxies = {"http": proxy, "https": proxy} if proxy else {}
+        url = self.url_prices if soup_type == "prices" else self.url
 
-        if soup_type == "attributes":
-            url = f"{BASE_URL}/{self.game}/player/{self.pid}"
-        elif soup_type == "prices":
-            url = (
-                f"{BASE_URL}/{self.game}/playerGraph?"
-                f"type=daily_graph&year={self.game}&player={self.rid}"
-            )
-        else:
-            raise ValueError("soup_type must be attributes or prices.")
-
-        resp = requests.get(url, proxies={"http": proxy, "https": proxy})
+        resp = requests.get(url, proxies=proxies)
         soup = BeautifulSoup(resp.text, features="lxml")
         if "does not have permission" in soup.text:
             time.sleep(2)
             raise ProxyError
 
-        return soup, resp
+        return soup
 
-    def download(self, proxy) -> None:
+    def download(self, proxy: Union[str, None] = None) -> None:
         """
         Download the player's information, attributes and statistics.
         """
-        soup, resp = self._download_soup("attributes", proxy)
+        soup = self._download_soup("attributes", proxy=proxy)
 
         if "We're sorry" in soup.text:
             return
 
-        try:
-            self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
-            self._parse_information(soup)
-        except Exception:
-            return
-        self.rating = int(soup.find("div", {"class": "pcdisplay-rat"}).text)
-        self.position = soup.find("div", {"id": "page-info"})["data-position"]
+        self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
 
-        # PGP information
-        pgp_div = soup.findAll("div", {"class": "ps4-pgp-data"})
-        pgp_stats = [stat.text.split()[-1].replace("-", "0") for stat in pgp_div[-3:]]
-        self.assists = float(pgp_stats[0])
-        self.goals = float(pgp_stats[1])
-        self.num_games = int(pgp_stats[2].replace(",", ""))
+        self.information = self._parse_information(soup)
+        self.url_prices = create_url(self.game, self.rid, True)
 
         # Attributes
         stats = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
-        try:
-            self._parse_attributes(stats, self.position)
-        except Exception:
-            return
+        self.attributes = self._parse_attributes(stats)
 
-    def download_prices(self, proxy) -> None:
+    def download_prices(self, proxy: Union[str, None] = None) -> list:
         """
         Download the player's daily prices.
         """
-
-        self.prices = []
-        soup, resp = self._download_soup("prices", proxy)
+        soup = self._download_soup("prices", proxy)
         soup_dict = json.loads(soup.text)
         if "ps" not in soup_dict:
-            return
-        for epoch, price in json.loads(soup.text)["ps"]:
-            self.prices.append(
-                (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
-            )
-        self.updated = True
+            return []
 
-    def _parse_information(self, soup: BeautifulSoup) -> None:
+        return [
+            (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
+            for epoch, price in json.loads(soup.text)["ps"]
+        ]
+
+    def _parse_information(self, soup: BeautifulSoup) -> dict:
         """
         Extract the player's information.
+
         There's some oddities depending on the game - for example FIFA 19 data was
         missing international reputation for all icons (bar moments) and there was
         no body type data for any players.
 
-        :soup: BeautifulSoup of the player's futbin page.
+        Args:
+            soup: BeautifulSoup of the player's futbin page.
         """
         info_table = soup.find("table", {"class": "table table-info"})
         info = parse_html_table(info_table)
 
-        self.name = info[0]
-        self.club = info[1]
-        self.nation = info[2]
-        self.league = info[3]
-        self.skill_moves = int(info[4])
-        self.weak_foot = int(info[5])
+        # Add padding to match structure of info list.
+        if "Career" not in info[0]:
+            info = [""] + info
+        if self.game <= 19 and len(info) == 19:
+            info = info[:7] + [3] + info[7:]
 
-        # The reputation field
-        shift = 0
-        if info[6] in {"Right", "Left"}:
-            shift = 1
-        self.reputation = int(info[6]) if shift == 0 else 4
-        self.foot = info[7 - shift]
-        self.height = int(info[8 - shift].split("cm")[0])
-        self.weight = int(info[9 - shift])
-        self.revision = info[10 - shift]
-        self.defensive_wr = info[11 - shift]
-        self.attacking_wr = info[12 - shift]
-        self.added_date = datetime.strptime(info[13 - shift], "%Y-%m-%d")
-        self.origin = info[14 - shift]
-        if "years" in info[-1]:
-            self.age = int(info[-1].split(" ")[0])
-        else:
-            self.age = years_since(info[-1])
+        age_f = info[17] if self.game <= 19 else info[18]
 
-    def _parse_attributes(self, stats: dict, position: str) -> None:
+        pgp_stats = [
+            stat.text.split()[-1].replace("-", "0")
+            for stat in soup.findAll("div", {"class": "ps4-pgp-data"})[-3:]
+        ]
+
+        return {
+            "name": info[1],
+            "rating": int(soup.find("div", {"class": "pcdisplay-rat"}).text),
+            "position": soup.find("div", {"id": "page-info"})["data-position"],
+            "club": info[2],
+            "nation": info[3],
+            "league": info[4],
+            "skill_moves": int(info[5]),
+            "weak_foot": int(info[6]),
+            "reputation": int(info[7]),
+            "foot": info[8],
+            "height": int(info[9].split("cm")[0]),
+            "weight": int(info[10]),
+            "revision": info[11],
+            "defensive_wr": info[12],
+            "attacking_wr": info[13],
+            "added_date": datetime.strptime(info[14], "%Y-%m-%d"),
+            "origin": info[15],
+            "body_type": info[17] if self.game > 19 else None,
+            "age": int(age_f.split(" ")[0]) if "years" in age_f else years_since(age_f),
+            "num_games": int(pgp_stats[2].replace(",", "")),
+            "num_goals": float(pgp_stats[1]),
+            "num_assists": float(pgp_stats[0]),
+        }
+
+    def _parse_attributes(self, stats: dict) -> dict:
         """
         Extract the individual player attributes
 
         :stats: dictionary containing the player statistics.
         :position: player's position.
         """
-
-        def extract_stat(s, i):
-            return int(s[i]["value"])
-
-        if position != "GK":
-
-            pace_stats = stats["pace"]
-            self.pace = extract_stat(pace_stats, 0)
-            self.acceleration = extract_stat(pace_stats, 1)
-            self.sprint_speed = extract_stat(pace_stats, 2)
-
-            shooting_stats = stats["shooting"]
-            self.shooting = extract_stat(shooting_stats, 0)
-            self.positioning = extract_stat(shooting_stats, 1)
-            self.finishing = extract_stat(shooting_stats, 2)
-            self.shot_power = extract_stat(shooting_stats, 3)
-            self.long_shots = extract_stat(shooting_stats, 4)
-            self.volleys = extract_stat(shooting_stats, 5)
-            self.penalties = extract_stat(shooting_stats, 6)
-
-            passing_stats = stats["passing"]
-            self.passing = extract_stat(passing_stats, 0)
-            self.vision = extract_stat(passing_stats, 1)
-            self.crossing = extract_stat(passing_stats, 2)
-            self.fk_accuracy = extract_stat(passing_stats, 3)
-            self.short_passing = extract_stat(passing_stats, 4)
-            self.long_passing = extract_stat(passing_stats, 5)
-            self.curve = extract_stat(passing_stats, 6)
-
-            dribbling_stats = stats["dribbling"]
-            self.dribbling = extract_stat(dribbling_stats, 0)
-            self.agility = extract_stat(dribbling_stats, 1)
-            self.balance = extract_stat(dribbling_stats, 2)
-            self.reactions = extract_stat(dribbling_stats, 3)
-            self.ball_control = extract_stat(dribbling_stats, 4)
-            self.dribble = extract_stat(dribbling_stats, 5)
-            self.composure = extract_stat(dribbling_stats, 6)
-
-            defending_stats = stats["defending"]
-            self.defending = extract_stat(defending_stats, 0)
-            self.interceptions = extract_stat(defending_stats, 1)
-            self.heading_accuracy = extract_stat(defending_stats, 2)
-            self.def_awareness = extract_stat(defending_stats, 3)
-            self.standing_tackle = extract_stat(defending_stats, 4)
-            self.sliding_tackle = extract_stat(defending_stats, 5)
-
-            physicality_stats = stats["physical"]
-            self.physicality = extract_stat(physicality_stats, 0)
-            self.jumping = extract_stat(physicality_stats, 1)
-            self.stamina = extract_stat(physicality_stats, 2)
-            self.strength = extract_stat(physicality_stats, 3)
-            self.aggression = extract_stat(physicality_stats, 4)
-
-        else:
-
-            diving_stats = stats["gkdiving"]
-            self.diving = extract_stat(diving_stats, 0)
-
-            handling_stats = stats["gkhandling"]
-            self.handling = extract_stat(handling_stats, 0)
-
-            kicking_stats = stats["gkkicking"]
-            self.kicking = extract_stat(kicking_stats, 0)
-
-            reflexes_stats = stats["gkreflexes"]
-            self.reflexes = extract_stat(reflexes_stats, 0)
-
-            speed_stats = stats["speed"]
-            speed = extract_stat(speed_stats, 0)
-            self.acceleration = speed
-            self.sprint_speed = speed
-
-            positioning_stats = stats["gkpositioning"]
-            self.positioning = extract_stat(positioning_stats, 0)
+        return {
+            stats_["id"]: stats_["value"]
+            for stats_ in np.concatenate(list(stats.values()))
+        }

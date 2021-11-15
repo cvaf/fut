@@ -26,6 +26,14 @@ def years_since(date: str) -> int:
     return int(delta.days / 365)
 
 
+def create_url(game: int, idd: int, prices: bool = False) -> str:
+    BASE_URL = "https://www.futbin.com"
+    if prices:
+        return f"{BASE_URL}/{game}/playerGraph?type=daily_graph&year={game}&player={idd}"
+    else:
+        return f"{BASE_URL}/{game}/player/{idd}"
+
+
 @ray.remote
 class ProxyHandler:
     URL = "https://www.us-proxy.org"
