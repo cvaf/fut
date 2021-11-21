@@ -12,13 +12,12 @@ clean-test:
 	rm -f .coverage
 	rm -f coverage.*
 
-clean: clean-pyc clean-test
+clean:	clean-pyc clean-test
 
-
-test: clean
-	poetry run pytest --cov-config=.coveragerc --cov=src --cov-report xml
+test:  clean
+	poetry run pytest
 
 mypy:
-	poetry run mypy src
+	poetry run mypy fut
 
 check: test mypy

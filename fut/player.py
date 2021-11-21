@@ -3,9 +3,9 @@ import json
 import numpy as np
 from datetime import datetime
 
-import requests
-from bs4 import BeautifulSoup
-from requests.exceptions import ProxyError
+import requests  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+from requests.exceptions import ProxyError  # type: ignore
 from typing import Union
 
 from .utils import parse_html_table, years_since, create_url
@@ -21,23 +21,18 @@ class Player:
         :game: Fifa version.
         :rid, optional: Unique player resource id, used for fetching prices.
         """
+        self.attributes = {
+            "game": game,
+            "pid": pid,
+        }
         self.game = game
         self.pid = pid
         self.rid = rid
-        self.name = None
         self.url = create_url(game, pid, prices=False)
         self.url_prices = create_url(game, rid, True) if rid else None
 
-    def __str__(self) -> str:
-        return self.name if self.name else str(self.pid)
-
-    def __eq__(self, other):
-        if type(other) == int:
-            identifier = self.pid
-        elif type(other) == str:
-            identifier = self.name
-        else:
-            identifier = self.name if self.name else str(self.pid)
+    def __eq__(self, other: Union[object, int, str]) -> bool:
+        identifier = self.attributes.get("name") if isinstance(other, str) else self.pid
         return identifier == other
 
     def _download_soup(
@@ -59,23 +54,30 @@ class Player:
 
         return soup
 
-    def download(self, proxy: Union[str, None] = None) -> None:
+    def download(self, proxy: Union[str, None] = None) -> dict:
         """
         Download the player's information, attributes and statistics.
         """
         soup = self._download_soup("attributes", proxy=proxy)
 
         if "We're sorry" in soup.text:
-            return
+            return {}
 
-        self.rid = int(soup.find("div", {"id": "page-info"})["data-player-resource"])
+        self.rid = self.attributes["rid"] = int(
+            soup.find("div", {"id": "page-info"})["data-player-resource"]
+        )
 
-        self.information = self._parse_information(soup)
+        information = self._parse_information(soup)
+        self.attributes.update(information)
+
         self.url_prices = create_url(self.game, self.rid, True)
 
         # Attributes
         stats = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
-        self.attributes = self._parse_attributes(stats)
+        attributes = self._parse_attributes(stats)
+        self.attributes.update(attributes)
+
+        return self.attributes
 
     def download_prices(self, proxy: Union[str, None] = None) -> list:
         """

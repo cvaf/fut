@@ -1,22 +1,23 @@
 import ray
 import random
-import requests
-from bs4 import BeautifulSoup
+import requests  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
 from datetime import datetime
 
+from typing import List
 
-def parse_html_table(table, concat=True) -> list:
+
+def parse_html_table(table: BeautifulSoup, concat: bool = True) -> list:
     data = []
     rows = table.find_all("tr")
     for row in rows:
-        cols = row.find_all("td")
-        cols = [ele.text.strip() for ele in cols]
+        cols = [ele.text.strip() for ele in row.find_all("td")]
         if concat:
             entries = "".join([ele for ele in cols if ele])
         else:
-            entries = [ele for ele in cols if ele]
-
+            entries = [ele for ele in cols if ele]  # type: ignore
         data.append(entries)
+
     return data
 
 
@@ -40,8 +41,8 @@ class ProxyHandler:
     PROXY_TYPES = ["anonymous", "elite proxy"]
 
     def __init__(self) -> None:
-        self.proxies = []
-        self.blacklist_proxies = []
+        self.proxies: List[str] = []
+        self.blacklist_proxies: List[str] = []
         self._new_proxies()
 
     def _new_proxies(self) -> None:

@@ -1,9 +1,10 @@
 import os
 import ray
 import pickle
-import requests
-from bs4 import BeautifulSoup
-from requests.exceptions import SSLError, ProxyError
+import requests  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+from requests.exceptions import SSLError, ProxyError  # type: ignore
+from typing import List, Union
 
 from .player import Player
 from .constants import DATA_FOLDER, MAX_PIDS
@@ -18,9 +19,9 @@ class Scraper:
         :game: fifa version
         """
         self.game = game
-        self.players = []
+        self.players: List[object] = []
 
-    def lookup(self, identifier: int) -> Player:
+    def lookup(self, identifier: int) -> Union[object, None]:
         player = [p for p in self.players if p == identifier]
         return player[0] if player else None
 
@@ -32,8 +33,8 @@ class Scraper:
 
             while not player.updated:
                 try:
-                    player.download(proxy)
-                    player.download_prices(proxy)
+                    _, _ = player.download(proxy)
+                    _ = player.download_prices(proxy)
                 except (SSLError, ProxyError):
                     proxy = ray.get(proxy_handler.refresh_proxy.remote(proxy))
 
@@ -45,11 +46,11 @@ class SharedStorage:
     def __init__(self, game: int) -> None:
         self.game = game
         self.pending_pids = list(range(self._latest_pid()))
-        self.players = []
+        self.players: List[object] = []
         self.file_path = os.path.join(DATA_FOLDER, f"players{game}.pkl")
         if os.path.isfile(self.file_path):
             self._load()
-        self.terminate = False
+        self.is_terminated = False
 
     def _latest_pid(self) -> int:
         """
@@ -69,7 +70,7 @@ class SharedStorage:
         with open(self.file_path, "rb") as f:
             players = pickle.load(f)
         self.players.extend(players)
-        current_pid = max([player.pid for player in self.players]) if self.players else 0
+        current_pid = max([player.pid for player in self.players]) if self.players else 0  # type: ignore
         self.pending_pids = list(range(current_pid, max(self.pending_pids)))
 
     def save(self) -> None:
@@ -80,14 +81,14 @@ class SharedStorage:
         pid = self.pending_pids[0]
         self.pending_pids.pop(0)
         if not self.pending_pids:
-            self.terminate = True
+            self.is_terminated = True
         return pid
 
     def get_pending(self) -> list:
         return self.pending_pids
 
     def get_terminate_status(self) -> bool:
-        return self.terminate
+        return self.is_terminated
 
     def terminate(self) -> None:
-        self.terminate = True
+        self.is_terminated = True
