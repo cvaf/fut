@@ -17,11 +17,8 @@ def test_player_download(expected_attributes, game):
     assert actual_attributes == expected_attributes
 
 
-
 @pytest.mark.parametrize(
-    "expected_prices, game",
-    [(21, 21), (20, 20), (19, 19)],
-    indirect=["expected_prices"]
+    "expected_prices, game", [(21, 21), (20, 20), (19, 19)], indirect=["expected_prices"]
 )
 def test_player_download_prices(expected_prices, game):
     p = Player(pid=PID, game=game)
