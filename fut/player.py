@@ -21,32 +21,27 @@ class Player:
         :game: Fifa version.
         :rid, optional: Unique player resource id, used for fetching prices.
         """
-        self.attributes = {
-            "game": game,
-            "pid": pid,
-        }
+        self.attributes = dict(game=game, pid=pid, update_date=None)
         self.game = game
         self.pid = pid
         self.rid = rid
         self.url = create_url(game, pid, prices=False)
         self.url_prices = create_url(game, rid, True) if rid else None
+        self.updated = False
 
     def __eq__(self, other: Union[object, int, str]) -> bool:
         identifier = self.attributes.get("name") if isinstance(other, str) else self.pid
         return identifier == other
 
-    def _download_soup(
-        self, soup_type: str, proxy: Union[str, None] = None
-    ) -> BeautifulSoup:
+    def _download_soup(self, soup_type: str) -> BeautifulSoup:
         """
         Download the parsed soup for the player or their prices.
 
         :soup_type: one of ('attributes', 'prices')
         """
-        proxies = {"http": proxy, "https": proxy} if proxy else {}
         url = self.url_prices if soup_type == "prices" else self.url
 
-        resp = requests.get(url, proxies=proxies)
+        resp = requests.get(url)
         soup = BeautifulSoup(resp.text, features="lxml")
         if "does not have permission" in soup.text:
             time.sleep(2)
@@ -54,105 +49,64 @@ class Player:
 
         return soup
 
-    def download(self, proxy: Union[str, None] = None) -> dict:
+    def download(self) -> dict:
         """
         Download the player's information, attributes and statistics.
         """
-        soup = self._download_soup("attributes", proxy=proxy)
+        soup = self._download_soup("attributes")
 
         if "We're sorry" in soup.text:
+            self.updated = True
             return {}
 
         self.rid = self.attributes["rid"] = int(
             soup.find("div", {"id": "page-info"})["data-player-resource"]
         )
+        self.attributes.update(
+            {
+                "rating": int(soup.find("div", {"class": "pcdisplay-rat"}).text),
+                "position": soup.find("div", {"id": "page-info"})["data-position"],
+            }
+        )
 
-        information = self._parse_information(soup)
+        information = parse_html_table(soup.find("table", {"class": "table table-info"}))
         self.attributes.update(information)
-
         self.url_prices = create_url(self.game, self.rid, True)
 
-        # Attributes
-        stats = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
-        attributes = self._parse_attributes(stats)
-        self.attributes.update(attributes)
-
-        return self.attributes
-
-    def download_prices(self, proxy: Union[str, None] = None) -> list:
-        """
-        Download the player's daily prices.
-        """
-        soup = self._download_soup("prices", proxy)
-        soup_dict = json.loads(soup.text)
-        if "ps" not in soup_dict:
-            return []
-
-        return [
-            (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
-            for epoch, price in json.loads(soup.text)["ps"]
-        ]
-
-    def _parse_information(self, soup: BeautifulSoup) -> dict:
-        """
-        Extract the player's information.
-
-        There's some oddities depending on the game - for example FIFA 19 data was
-        missing international reputation for all icons (bar moments) and there was
-        no body type data for any players.
-
-        Args:
-            soup: BeautifulSoup of the player's futbin page.
-        """
-        info_table = soup.find("table", {"class": "table table-info"})
-        info = parse_html_table(info_table)
-
-        # Add padding to match structure of info list.
-        if "Career" not in info[0]:
-            info = [""] + info
-        if self.game <= 19 and len(info) == 19:
-            info = info[:7] + [3] + info[7:]
-
-        age_f = info[17] if self.game <= 19 else info[18]
-
+        # PGP Stats
         pgp_stats = [
             stat.text.split()[-1].replace("-", "0")
             for stat in soup.findAll("div", {"class": "ps4-pgp-data"})[-3:]
         ]
+        self.attributes.update(
+            {
+                "num_games": int(pgp_stats[2].replace(",", "")),
+                "num_goals": float(pgp_stats[1]),  # type: ignore
+                "num_assists": float(pgp_stats[0]),  # type: ignore
+            }
+        )
 
-        return {
-            "name": info[1],
-            "rating": int(soup.find("div", {"class": "pcdisplay-rat"}).text),
-            "position": soup.find("div", {"id": "page-info"})["data-position"],
-            "club": info[2],
-            "nation": info[3],
-            "league": info[4],
-            "skill_moves": int(info[5]),
-            "weak_foot": int(info[6]),
-            "reputation": int(info[7]),
-            "foot": info[8],
-            "height": int(info[9].split("cm")[0]),
-            "weight": int(info[10]),
-            "revision": info[11],
-            "defensive_wr": info[12],
-            "attacking_wr": info[13],
-            "added_date": datetime.strptime(info[14], "%Y-%m-%d"),
-            "origin": info[15],
-            "body_type": info[17] if self.game > 19 else None,
-            "age": int(age_f.split(" ")[0]) if "years" in age_f else years_since(age_f),
-            "num_games": int(pgp_stats[2].replace(",", "")),
-            "num_goals": float(pgp_stats[1]),
-            "num_assists": float(pgp_stats[0]),
-        }
+        # Attributes
+        table = json.loads(soup.find("div", {"id": "player_stats_json"}).text.strip())[0]
+        _attributes = {s["id"]: s["value"] for s in np.concatenate(list(table.values()))}
+        self.attributes.update(_attributes)
 
-    def _parse_attributes(self, stats: dict) -> dict:
+        self.attributes["update_date"] = datetime.now()  # type: ignore
+        self.updated = True
+        return self.attributes
+
+    def download_prices(self) -> list:
         """
-        Extract the individual player attributes
-
-        :stats: dictionary containing the player statistics.
-        :position: player's position.
+        Download the player's daily prices.
         """
-        return {
-            stats_["id"]: stats_["value"]
-            for stats_ in np.concatenate(list(stats.values()))
-        }
+        soup = self._download_soup("prices")
+        soup_dict = json.loads(soup.text)
+        if "ps" not in soup_dict:
+            return []
+
+        self.prices = [
+            (time.strftime("%Y-%m-%d", time.gmtime(epoch // 1000)), price)
+            for epoch, price in json.loads(soup.text)["ps"]
+        ]
+
+        return self.prices

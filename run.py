@@ -9,7 +9,7 @@ from fut import Client
 @click.option("--num_workers", default=4, help="Number of workers to use in parallel.")
 def run(game: int, num_workers: int) -> None:
 
-    if game not in {19, 20, 21}:
+    if game not in {19, 20, 21, 22}:
         raise ValueError(f"Invalid game argument: {game}")
     elif num_workers < 4:
         raise ValueError("Number of workers must be greater than 3")

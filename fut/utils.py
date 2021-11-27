@@ -1,24 +1,22 @@
-import ray
-import random
-import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 from datetime import datetime
 
 from typing import List
 
 
-def parse_html_table(table: BeautifulSoup, concat: bool = True) -> list:
-    data = []
-    rows = table.find_all("tr")
-    for row in rows:
-        cols = [ele.text.strip() for ele in row.find_all("td")]
-        if concat:
-            entries = "".join([ele for ele in cols if ele])
-        else:
-            entries = [ele for ele in cols if ele]  # type: ignore
-        data.append(entries)
+def _clean_string(text: str, key: bool = False) -> str:
+    text = text.replace('\n','').replace('\r','').lstrip().rstrip()
+    return text if not key else text.lower().replace(".", "").replace(" ", "_")
 
-    return data
+
+def parse_html_table(table: BeautifulSoup) -> dict:
+    output = {}
+    for row in table.find_all("tr"):
+        k, d = row.find("th"), row.find("td")
+        if k and d:
+            output[_clean_string(k.text, key=True)] = _clean_string(d.text)
+
+    return output
 
 
 def years_since(date: str) -> int:
@@ -33,39 +31,3 @@ def create_url(game: int, idd: int, prices: bool = False) -> str:
         return f"{BASE_URL}/{game}/playerGraph?type=daily_graph&year={game}&player={idd}"
     else:
         return f"{BASE_URL}/{game}/player/{idd}"
-
-
-@ray.remote
-class ProxyHandler:
-    URL = "https://www.us-proxy.org"
-    PROXY_TYPES = ["anonymous", "elite proxy"]
-
-    def __init__(self) -> None:
-        self.proxies: List[str] = []
-        self.blacklist_proxies: List[str] = []
-        self._new_proxies()
-
-    def _new_proxies(self) -> None:
-        resp = requests.get(self.URL)
-        soup = BeautifulSoup(resp.text, "lxml")
-        parsed_table = parse_html_table(soup.find("tbody"), concat=False)
-        proxies = [
-            proxy[0] + ":" + proxy[1]
-            for proxy in parsed_table
-            if proxy[2] == "US" and proxy[4] in self.PROXY_TYPES
-        ]
-        self.proxies = [proxy for proxy in proxies if proxy not in self.blacklist_proxies]
-
-    def remove_proxy(self, proxy: str) -> None:
-        if proxy in self.proxies:
-            self.proxies.remove(proxy)
-        self.blacklist_proxies.append(proxy)
-
-    def get_proxy(self) -> str:
-        if not self.proxies:
-            self._new_proxies()
-        return random.choice(self.proxies)
-
-    def refresh_proxy(self, proxy: str) -> str:
-        self.remove_proxy(proxy)
-        return self.get_proxy()

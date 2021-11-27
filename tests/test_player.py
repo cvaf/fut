@@ -12,8 +12,13 @@ PID = 20000
     indirect=["expected_attributes"],
 )
 def test_player_download(expected_attributes, game):
+    drop_keys = {"num_games", "num_goals", "num_assists", "update_date"}
+
     p = Player(pid=PID, game=game)
     actual_attributes = p.download()
+
+    [(actual_attributes.pop(key), expected_attributes.pop(key)) for key in drop_keys]
+
     assert actual_attributes == expected_attributes
 
 
