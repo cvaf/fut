@@ -3,14 +3,12 @@ import ray
 import pickle
 import requests  # type: ignore
 import pandas as pd  # type: ignore
-from numpy import concatenate
 from bs4 import BeautifulSoup  # type: ignore
 from requests.exceptions import SSLError, ProxyError  # type: ignore
-from itertools import repeat
 from typing import List, Union
 
 from .player import Player
-from .constants import DATA_FOLDER, MAX_PIDS
+from .constants import DATA_FOLDER, MAX_PIDS, HEADERS
 
 
 @ray.remote
@@ -29,7 +27,7 @@ class SharedStorage:
         Find the latest available player ID on futbin
         """
         if self.game == 22:
-            resp = requests.get("https://www.futbin.com/latest")
+            resp = requests.get("https://www.futbin.com/latest", headers=HEADERS)
             soup = BeautifulSoup(resp.text, "lxml")
             pid = soup.find_all("table")[0].find("a").attrs["href"].split("/")[3]
         elif self.game in MAX_PIDS.keys():
@@ -49,7 +47,7 @@ class SharedStorage:
         self.players.append(player)
 
     def save_pickle(self) -> None:
-        with open(self.file_path, 'wb') as f:
+        with open(self.file_path, "wb") as f:
             f.write(pickle.dumps(self.players))
 
     def attributes_to_dataframe(self) -> pd.DataFrame:

@@ -1,11 +1,9 @@
 from bs4 import BeautifulSoup  # type: ignore
 from datetime import datetime
 
-from typing import List
-
 
 def _clean_string(text: str, key: bool = False) -> str:
-    text = text.replace('\n','').replace('\r','').lstrip().rstrip()
+    text = text.replace("\n", "").replace("\r", "").lstrip().rstrip()
     return text if not key else text.lower().replace(".", "").replace(" ", "_")
 
 

@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup  # type: ignore
 from requests.exceptions import ProxyError  # type: ignore
 from typing import Union
 
-from .utils import parse_html_table, years_since, create_url
+from .utils import parse_html_table, create_url
+from .constants import HEADERS
 
 
 class Player:
@@ -41,7 +42,7 @@ class Player:
         """
         url = self.url_prices if soup_type == "prices" else self.url
 
-        resp = requests.get(url)
+        resp = requests.get(url, headers=HEADERS)
         soup = BeautifulSoup(resp.text, features="lxml")
         if "does not have permission" in soup.text:
             time.sleep(2)
